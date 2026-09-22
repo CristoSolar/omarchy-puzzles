@@ -1,5 +1,9 @@
 import QtQuick
+import Quickshell
+import Quickshell.Io
 import qs.Ui
+import "lib/state.js" as State
+import "lib/queens.js" as Queens
 
 // Indicador del puzzle del dia. Monta el panel y lo abre con un clic.
 BarWidget {
@@ -8,6 +12,10 @@ BarWidget {
 
   readonly property string icon: "♛"
   readonly property int size: root.setting("size", 8)
+
+  property var gameState: State.parseState("")
+  readonly property bool pendiente: root.gameState.lastSolved !== Queens.dateKey(new Date())
+  readonly property int streak: root.gameState.streak
 
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
@@ -31,7 +39,18 @@ BarWidget {
   function closeForPopoutSwitch() { if (panelLoader.item) panelLoader.item.closeForPopoutSwitch() }
 
   function refresh() {
-    // Rellenado en la tarea 7.
+    stateFile.reload()
+  }
+
+  FileView {
+    id: stateFile
+    path: Quickshell.env("HOME") + "/.local/state/omarchy-queens/state.json"
+    watchChanges: true
+    blockAllReads: true
+    printErrors: false
+    onLoaded: root.gameState = State.parseState(stateFile.text())
+    onLoadFailed: root.gameState = State.parseState("")
+    onFileChanged: reload()
   }
 
   onBarChanged: injectPanel()
@@ -53,9 +72,12 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.icon
-    active: root.opened
-    tooltipText: "Queens del dia"
+    text: root.streak > 0 && !root.vertical ? root.icon + "  " + root.streak : root.icon
+    active: root.opened || !root.pendiente
+    dimmed: root.pendiente && !root.opened
+    tooltipText: root.pendiente
+      ? "Queens de hoy sin resolver — racha de " + root.streak
+      : "Queens de hoy resuelto — racha de " + root.streak
     onPressed: function (b) {
       if (panelLoader.item) panelLoader.item.toggle()
     }

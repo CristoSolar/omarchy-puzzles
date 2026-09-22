@@ -1,6 +1,9 @@
 import QtQuick
+import Quickshell
+import Quickshell.Io
 import qs.Ui
 import "lib/queens.js" as Queens
+import "lib/state.js" as State
 
 // Tablero del dia. La clave de fecha se recalcula en cada apertura, nunca se
 // cachea al cargar: el shell corre semanas seguidas y el dia cambia bajo sus
@@ -28,6 +31,9 @@ Panel {
   property bool won: false
   property string errorText: ""
 
+  readonly property string statePath: Quickshell.env("HOME") + "/.local/state/omarchy-queens/state.json"
+  property var gameState: State.parseState("")
+
   readonly property int cellPixels: 44
   readonly property int boardPixels: root.size * root.cellPixels + (root.size - 1) * 2
 
@@ -44,9 +50,16 @@ Panel {
       root.errorText = "" + e
       return
     }
-    root.cells = blankCells()
-    root.badCells = []
-    root.elapsedMs = 0
+    var guardadas = State.restoreInProgress(root.gameState, root.dayKey, root.size)
+    if (guardadas) {
+      root.cells = guardadas
+      root.elapsedMs = root.gameState.inProgress.elapsedMs
+      root.badCells = Queens.conflicts(root.size, root.board.regions, guardadas)
+    } else {
+      root.cells = blankCells()
+      root.elapsedMs = 0
+      root.badCells = []
+    }
     root.won = false
   }
 
@@ -66,7 +79,15 @@ Panel {
 
   function close() {
     clock.stop()
+    if (root.board && !root.won) {
+      root.persist(State.saveInProgress(root.gameState, root.dayKey, root.cells, root.elapsedMs))
+    }
     root.controller.hide()
+  }
+
+  function persist(next) {
+    root.gameState = next
+    stateFile.setText(State.serializeState(next))
   }
 
   function cycle(index) {
@@ -78,6 +99,7 @@ Panel {
     if (Queens.isSolved(root.size, root.board.regions, next)) {
       root.won = true
       clock.stop()
+      root.persist(State.recordSolve(root.gameState, root.dayKey, root.elapsedMs, root.size))
       root.solved(root.elapsedMs)
     }
   }
@@ -110,6 +132,20 @@ Panel {
     var mm = Math.floor(total / 60)
     var ss = total % 60
     return (mm < 10 ? "0" : "") + mm + ":" + (ss < 10 ? "0" : "") + ss
+  }
+
+  // blockAllReads deja la lectura sincrona: sin eso `newDay()` puede correr
+  // antes de que el archivo cargue y perder la partida en curso.
+  FileView {
+    id: stateFile
+    path: root.statePath
+    watchChanges: true
+    blockAllReads: true
+    atomicWrites: true
+    printErrors: false
+    onLoaded: root.gameState = State.parseState(stateFile.text())
+    onLoadFailed: root.gameState = State.parseState("")
+    onFileChanged: reload()
   }
 
   Timer {

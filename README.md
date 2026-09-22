@@ -1,0 +1,94 @@
+# Queens para Omarchy
+
+Un puzzle Queens diario en la barra de [Omarchy](https://omarchy.org), al estilo
+del juego de LinkedIn. El tablero se genera en tu equipo a partir de la fecha del
+día, con solución única garantizada, y guarda tu racha.
+
+Sin red, sin dependencias, sin telemetría.
+
+## Reglas
+
+Coloca **una reina por fila, por columna y por región de color**, y que ninguna
+toque a otra en las ocho direcciones vecinas.
+
+La adyacencia no es la del ajedrez: dos reinas en la misma diagonal larga son
+legales mientras no sean vecinas inmediatas.
+
+Un clic en una celda cicla entre vacía, marca ✕ y reina ♛. Las reinas en
+conflicto se pintan con borde rojo mientras juegas.
+
+## Instalación
+
+```bash
+omarchy plugin add https://github.com/CristoSolar/omarchy-queens.git
+```
+
+O desde una copia local:
+
+```bash
+git clone https://github.com/CristoSolar/omarchy-queens.git
+cd omarchy-queens && ./install.sh
+```
+
+Después agrega el widget a la barra desde el menú de Omarchy (Setup → Plugins),
+o a mano en `~/.config/omarchy/shell.json`, dentro de `bar.layout`:
+
+```json
+{ "id": "io.github.cristosolar.queens" }
+```
+
+## Opciones
+
+| Opción | Valores | Por defecto | Qué hace |
+|--------|---------|-------------|----------|
+| `size` | 7, 8, 9 | 8 | Lado del tablero y cantidad de regiones |
+
+## El widget de la barra
+
+Muestra la corona con tu racha. Atenuada mientras el puzzle de hoy siga sin
+resolver, encendida cuando lo resolviste. Un clic abre y cierra el tablero.
+
+## Estado
+
+Todo vive en `~/.local/state/omarchy-queens/state.json`:
+
+```json
+{
+  "lastSolved": "2026-09-22",
+  "streak": 3,
+  "best": { "8": 61000 },
+  "inProgress": null
+}
+```
+
+La racha sube cuando resuelves el día siguiente al último resuelto, y vuelve a 1
+tras un día sin jugar. `best` es tu mejor tiempo en milisegundos por tamaño de
+tablero. `inProgress` guarda la partida a medias al cerrar el panel, y se
+descarta sola al cambiar el día o el tamaño.
+
+Borrar ese archivo reinicia la racha; el plugin arranca de cero sin quejarse, y
+también lo hace si el archivo queda corrupto.
+
+## Desarrollo
+
+La lógica del juego es JavaScript plano en `lib/`, sin nada de QML ni acceso a
+disco, así que se prueba sin levantar el shell:
+
+```bash
+node --test
+```
+
+- `lib/queens.js` — generador, solver y validador
+- `lib/state.js` — racha, mejor tiempo y partida en curso, como funciones puras
+- `Panel.qml` — el tablero
+- `BarWidget.qml` — la corona de la barra
+
+El generador coloca las reinas, hace crecer las regiones desde cada una y luego
+refina: busca una solución sobrante y la invalida moviendo una de sus celdas a
+una región vecina, cuidando que ninguna región quede partida. El crecimiento
+puramente aleatorio da solución única menos de una vez cada 300 intentos en 8×8,
+así que reintentar no alcanza.
+
+## Licencia
+
+MIT

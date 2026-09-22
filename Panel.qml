@@ -27,6 +27,11 @@ Panel {
   property var cells: []
   property string dayKey: ""
   property var badCells: []
+  // Las X que puso el usuario, separadas de las deducidas: recalcular las
+  // automaticas no debe borrar las suyas, y sacar una reina si debe borrar
+  // las que esa reina genero.
+  property var manualMarks: []
+  property var autoMarks: []
   property int elapsedMs: 0
   property bool won: false
   property string errorText: ""
@@ -63,6 +68,8 @@ Panel {
       // el panel muestra el tablero resuelto en vez de ofrecerlo otra vez.
       root.cells = solutionCells()
       root.elapsedMs = root.gameState.lastElapsedMs
+      root.manualMarks = []
+      root.autoMarks = []
       root.badCells = []
       root.won = true
       return
@@ -70,10 +77,18 @@ Panel {
 
     var guardadas = State.restoreInProgress(root.gameState, root.dayKey, root.size)
     if (guardadas) {
-      root.cells = guardadas
+      // Lo guardado son reinas y X propias; las deducidas se recalculan sin
+      // ocupar disco ni poder quedar desincronizadas.
+      var marcas = []
+      for (var k = 0; k < guardadas.length; k++) {
+        if (guardadas[k] === 1) marcas.push(k)
+      }
+      root.manualMarks = marcas
       root.elapsedMs = root.gameState.inProgress.elapsedMs
-      root.badCells = Queens.conflicts(root.size, root.board.regions, guardadas)
+      root.recompute(guardadas)
     } else {
+      root.manualMarks = []
+      root.autoMarks = []
       root.cells = blankCells()
       root.elapsedMs = 0
       root.badCells = []
@@ -119,24 +134,71 @@ Panel {
   function cycle(index) {
     if (root.won || !root.board) return
     var next = root.cells.slice()
-    next[index] = (next[index] + 1) % 3
-    root.cells = next
-    root.badCells = Queens.conflicts(root.size, root.board.regions, next)
-    if (Queens.isSolved(root.size, root.board.regions, next)) {
+    var era = next[index]
+    next[index] = (era + 1) % 3
+
+    // Una X automatica se comporta como vacia al clickearla: el primer clic la
+    // convierte en marca propia, no la saltea.
+    if (era === 1 && root.isAuto(index)) next[index] = 1
+
+    var marcas = []
+    for (var i = 0; i < root.manualMarks.length; i++) {
+      if (root.manualMarks[i] !== index) marcas.push(root.manualMarks[i])
+    }
+    if (next[index] === 1) marcas.push(index)
+    root.manualMarks = marcas
+
+    root.recompute(next)
+    if (Queens.isSolved(root.drawnSize, root.board.regions, root.cells)) {
       root.won = true
       clock.stop()
-      root.persist(State.recordSolve(root.gameState, root.dayKey, root.elapsedMs, root.size))
+      root.persist(State.recordSolve(root.gameState, root.dayKey, root.elapsedMs, root.drawnSize))
       root.solved(root.elapsedMs)
     }
   }
 
   function clear() {
     if (!root.board) return
+    root.manualMarks = []
+    root.autoMarks = []
     root.cells = blankCells()
     root.badCells = []
     root.won = false
     root.elapsedMs = 0
     clock.start()
+  }
+
+  // Reconstruye la grilla visible: reinas, X manuales y X deducidas de las
+  // reinas presentes. Se llama entera en cada clic, asi sacar una reina limpia
+  // sus marcas sin bookkeeping incremental.
+  function recompute(queenCells) {
+    var next = queenCells.slice()
+    var i
+    for (i = 0; i < next.length; i++) {
+      if (next[i] === 1) next[i] = 0
+    }
+    for (i = 0; i < root.manualMarks.length; i++) {
+      if (next[root.manualMarks[i]] === 0) next[root.manualMarks[i]] = 1
+    }
+
+    var auto = Queens.blockedCells(root.drawnSize, root.board.regions, next)
+    var autos = []
+    for (i = 0; i < auto.length; i++) {
+      if (next[auto[i]] === 0) {
+        next[auto[i]] = 1
+        autos.push(auto[i])
+      }
+    }
+    root.autoMarks = autos
+    root.cells = next
+    root.badCells = Queens.conflicts(root.drawnSize, root.board.regions, next)
+  }
+
+  function isAuto(index) {
+    for (var i = 0; i < root.autoMarks.length; i++) {
+      if (root.autoMarks[i] === index) return true
+    }
+    return false
   }
 
   function isBad(index) {
@@ -267,7 +329,9 @@ Panel {
                 anchors.centerIn: parent
                 font.pixelSize: root.cells[cell.index] === 2 ? 26 : 18
                 text: root.cells[cell.index] === 2 ? "♛" : (root.cells[cell.index] === 1 ? "✕" : "")
-                color: root.cells[cell.index] === 2 ? "#141414" : "#55000000"
+                color: root.cells[cell.index] === 2
+                  ? "#141414"
+                  : (root.isAuto(cell.index) ? "#33000000" : "#77000000")
               }
 
               MouseArea {

@@ -212,3 +212,48 @@ test('las regiones generadas quedan contiguas', () => {
     }
   }
 });
+
+test('blockedCells marca fila, columna, region y vecinas de cada reina', () => {
+  const n = 4;
+  const cells = new Array(n * n).fill(0);
+  cells[1 * n + 1] = 2;   // reina en (1,1), region 1 por franjas
+  const bloqueadas = new Set(Q.blockedCells(n, FRANJAS_4, cells));
+
+  assert.ok(bloqueadas.has(1 * n + 3), 'resto de su fila');
+  assert.ok(bloqueadas.has(3 * n + 1), 'resto de su columna');
+  assert.ok(bloqueadas.has(0 * n + 0), 'vecina en diagonal');
+  assert.ok(bloqueadas.has(2 * n + 2), 'vecina en la otra diagonal');
+  assert.ok(!bloqueadas.has(1 * n + 1), 'la celda de la reina no se marca a si misma');
+  assert.ok(!bloqueadas.has(3 * n + 3), 'una celda libre no se marca');
+});
+
+test('blockedCells marca toda la region, no solo las vecinas', () => {
+  const n = 4;
+  // Region 0 en forma de L en la esquina superior izquierda.
+  const regiones = [
+    0, 0, 1, 1,
+    0, 2, 2, 1,
+    3, 3, 2, 1,
+    3, 3, 2, 1,
+  ];
+  const cells = new Array(n * n).fill(0);
+  cells[0] = 2;   // reina en (0,0), region 0
+  const bloqueadas = new Set(Q.blockedCells(n, regiones, cells));
+  assert.ok(bloqueadas.has(1), 'misma region, adyacente');
+  assert.ok(bloqueadas.has(4), 'misma region, la pata de la L');
+});
+
+test('blockedCells no marca celdas ya ocupadas por otra reina', () => {
+  const n = 4;
+  const cells = new Array(n * n).fill(0);
+  cells[0 * n + 0] = 2;
+  cells[1 * n + 1] = 2;   // en conflicto con la anterior, pero es una reina
+  const bloqueadas = Q.blockedCells(n, FRANJAS_4, cells);
+  assert.ok(!bloqueadas.includes(0), 'una reina no se marca con X');
+  assert.ok(!bloqueadas.includes(5), 'la otra tampoco');
+});
+
+test('sin reinas no hay nada bloqueado', () => {
+  const n = 4;
+  assert.deepStrictEqual(Q.blockedCells(n, FRANJAS_4, new Array(n * n).fill(0)), []);
+});

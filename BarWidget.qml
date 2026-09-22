@@ -14,7 +14,11 @@ BarWidget {
   readonly property int size: root.setting("size", 8)
 
   property var gameState: State.parseState("")
-  readonly property bool pendiente: root.gameState.lastSolved !== Queens.dateKey(new Date())
+  // `new Date()` no notifica nada, asi que el binding necesita una propiedad
+  // que si cambie: sin esto la corona sigue diciendo "resuelto" todo el dia
+  // siguiente, porque el shell corre semanas sin reiniciarse.
+  property string today: Queens.dateKey(new Date())
+  readonly property bool pendiente: root.gameState.lastSolved !== root.today
   readonly property int streak: root.gameState.streak
 
   implicitWidth: button.implicitWidth
@@ -40,6 +44,13 @@ BarWidget {
 
   function refresh() {
     stateFile.reload()
+  }
+
+  Timer {
+    interval: 60000
+    running: true
+    repeat: true
+    onTriggered: root.today = Queens.dateKey(new Date())
   }
 
   FileView {

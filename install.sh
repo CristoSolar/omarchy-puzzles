@@ -12,8 +12,9 @@ if [ "$SOURCE" = "$TARGET" ]; then
   echo "Ya estas en la ruta de instalacion; nada que copiar."
 else
   mkdir -p "$TARGET"
-  cp -r "$SOURCE/manifest.json" "$SOURCE/BarWidget.qml" "$SOURCE/lib" "$TARGET/"
-  [ -f "$SOURCE/Panel.qml" ] && cp "$SOURCE/Panel.qml" "$TARGET/"
+  # Todos obligatorios: sin Panel.qml el Loader del widget queda vacio y el
+  # clic en la corona no hace nada, sin un solo error visible.
+  cp -r "$SOURCE/manifest.json" "$SOURCE/BarWidget.qml" "$SOURCE/Panel.qml" "$SOURCE/lib" "$TARGET/"
   echo "Instalado en $TARGET"
 fi
 

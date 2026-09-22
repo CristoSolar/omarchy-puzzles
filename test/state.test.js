@@ -96,3 +96,25 @@ test('serializeState y parseState son un viaje de ida y vuelta', () => {
   const st = S.recordSolve(S.parseState(''), '2026-09-22', 12345, 8);
   assert.deepStrictEqual(S.parseState(S.serializeState(st)), st);
 });
+
+// Hallazgos 2/4/5 de la revision: barra y panel tienen que poder preguntar
+// "¿ya esta resuelto hoy?" sin recalcularlo cada uno por su cuenta.
+test('solvedOn reconoce el dia ya resuelto', () => {
+  const st = S.recordSolve(S.parseState(''), '2026-09-22', 61000, 8);
+  assert.strictEqual(S.solvedOn(st, '2026-09-22'), true);
+  assert.strictEqual(S.solvedOn(st, '2026-09-23'), false);
+  assert.strictEqual(S.solvedOn(S.parseState(''), '2026-09-22'), false);
+});
+
+test('recordSolve guarda el tiempo del ultimo resuelto, no solo el mejor', () => {
+  let st = S.recordSolve(S.parseState(''), '2026-09-21', 40000, 8);
+  st = S.recordSolve(st, '2026-09-22', 95000, 8);
+  assert.strictEqual(st.best['8'], 40000, 'el mejor sigue siendo el mejor');
+  assert.strictEqual(st.lastElapsedMs, 95000, 'el panel muestra el de hoy, no el record');
+});
+
+test('parseState recupera y valida lastElapsedMs', () => {
+  assert.strictEqual(S.parseState('{"lastElapsedMs": 1234}').lastElapsedMs, 1234);
+  assert.strictEqual(S.parseState('{"lastElapsedMs": -5}').lastElapsedMs, 0, 'negativo se descarta');
+  assert.strictEqual(S.parseState('').lastElapsedMs, 0);
+});

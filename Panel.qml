@@ -35,9 +35,17 @@ Panel {
   property var gameState: State.parseState("")
 
   readonly property int cellPixels: 44
-  readonly property int boardPixels: root.size * root.cellPixels + (root.size - 1) * 2
+  // El tablero dibujado manda sobre la opcion: mientras no se regenere, `size`
+  // puede haber cambiado y pintar 81 celdas sobre 64 regiones.
+  readonly property int drawnSize: root.board ? root.board.n : root.size
+  readonly property int boardPixels: root.drawnSize * root.cellPixels + (root.drawnSize - 1) * 2
 
   signal solved(int elapsed)
+
+  // Cambiar el tamano en Setup regenera en el acto: sin esto el panel queda
+  // pintando la grilla nueva sobre las regiones viejas, injugable hasta que
+  // cambie el dia.
+  onSizeChanged: if (root.board) newDay()
 
   function newDay() {
     var now = new Date()
@@ -50,6 +58,16 @@ Panel {
       root.errorText = "" + e
       return
     }
+    if (State.solvedOn(root.gameState, root.dayKey)) {
+      // Ya resuelto hoy: tras reiniciar el shell, o al abrirlo en otro monitor,
+      // el panel muestra el tablero resuelto en vez de ofrecerlo otra vez.
+      root.cells = solutionCells()
+      root.elapsedMs = root.gameState.lastElapsedMs
+      root.badCells = []
+      root.won = true
+      return
+    }
+
     var guardadas = State.restoreInProgress(root.gameState, root.dayKey, root.size)
     if (guardadas) {
       root.cells = guardadas
@@ -61,6 +79,14 @@ Panel {
       root.badCells = []
     }
     root.won = false
+  }
+
+  function solutionCells() {
+    var out = blankCells()
+    for (var row = 0; row < root.board.n; row++) {
+      out[row * root.board.n + root.board.solution[row]] = 2
+    }
+    return out
   }
 
   function blankCells() {
@@ -79,7 +105,7 @@ Panel {
 
   function close() {
     clock.stop()
-    if (root.board && !root.won) {
+    if (root.board && !root.won && !State.solvedOn(root.gameState, root.dayKey)) {
       root.persist(State.saveInProgress(root.gameState, root.dayKey, root.cells, root.elapsedMs))
     }
     root.controller.hide()
@@ -109,6 +135,7 @@ Panel {
     root.cells = blankCells()
     root.badCells = []
     root.won = false
+    root.elapsedMs = 0
     clock.start()
   }
 
@@ -143,7 +170,17 @@ Panel {
     blockAllReads: true
     atomicWrites: true
     printErrors: false
-    onLoaded: root.gameState = State.parseState(stateFile.text())
+    onLoaded: {
+      root.gameState = State.parseState(stateFile.text())
+      // Resuelto en otra pantalla: este panel deja de correr su propio reloj.
+      if (root.board && !root.won && State.solvedOn(root.gameState, root.dayKey)) {
+        clock.stop()
+        root.cells = solutionCells()
+        root.elapsedMs = root.gameState.lastElapsedMs
+        root.badCells = []
+        root.won = true
+      }
+    }
     onLoadFailed: root.gameState = State.parseState("")
     onFileChanged: reload()
   }
@@ -183,8 +220,10 @@ Panel {
           Text {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            text: root.won ? "Resuelto en " + root.formatTime(root.elapsedMs)
-                           : root.formatTime(root.elapsedMs)
+            text: root.won
+              ? "Resuelto en " + root.formatTime(root.elapsedMs)
+                + " — racha de " + root.gameState.streak
+              : root.formatTime(root.elapsedMs)
             font.pixelSize: 17
             font.bold: root.won
             color: root.won ? "#6abf69" : root.barForeground
@@ -208,11 +247,11 @@ Panel {
 
         Grid {
           visible: root.board !== null
-          columns: root.size
+          columns: root.drawnSize
           spacing: 2
 
           Repeater {
-            model: root.board ? root.size * root.size : 0
+            model: root.board ? root.drawnSize * root.drawnSize : 0
 
             Rectangle {
               id: cell

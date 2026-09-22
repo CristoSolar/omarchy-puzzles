@@ -92,3 +92,123 @@ test('las marcas no cuentan como reinas', () => {
   assert.deepStrictEqual(Q.conflicts(n, FRANJAS_4, cells), []);
   assert.strictEqual(Q.isSolved(n, FRANJAS_4, cells), false);
 });
+
+test('findSolutions devuelve las colocaciones, no solo la cuenta', () => {
+  const sols = Q.findSolutions(4, FRANJAS_4, 5);
+  assert.strictEqual(sols.length, 2);
+  for (const sol of sols) {
+    assert.strictEqual(sol.length, 4);
+    assert.strictEqual(new Set(sol).size, 4);
+    for (let row = 1; row < 4; row++) {
+      assert.ok(Math.abs(sol[row] - sol[row - 1]) > 1);
+    }
+  }
+  assert.notDeepStrictEqual(sols[0], sols[1]);
+});
+
+test('findSolutions respeta el limite', () => {
+  assert.strictEqual(Q.findSolutions(4, FRANJAS_4, 1).length, 1);
+});
+
+test('regionContiguous distingue una region partida', () => {
+  // Region 0 en las dos puntas de la fila superior, sin camino entre ellas.
+  const partida = [
+    0, 1, 1, 0,
+    1, 1, 1, 1,
+    2, 2, 3, 3,
+    2, 2, 3, 3,
+  ];
+  assert.strictEqual(Q.regionContiguous(4, partida, 0), false);
+  assert.strictEqual(Q.regionContiguous(4, partida, 1), true);
+  assert.strictEqual(Q.regionContiguous(4, FRANJAS_4, 2), true);
+});
+
+function invariantes(board) {
+  const { n, regions, solution } = board;
+  assert.strictEqual(regions.length, n * n);
+  assert.strictEqual(solution.length, n);
+
+  const vistos = new Set(regions);
+  assert.strictEqual(vistos.size, n, 'debe haber exactamente N regiones');
+
+  const cols = new Set();
+  const regs = new Set();
+  for (let row = 0; row < n; row++) {
+    const col = solution[row];
+    assert.ok(col >= 0 && col < n);
+    cols.add(col);
+    regs.add(regions[row * n + col]);
+    if (row > 0) {
+      assert.ok(Math.abs(col - solution[row - 1]) > 1, 'reinas adyacentes');
+    }
+  }
+  assert.strictEqual(cols.size, n, 'columnas repetidas');
+  assert.strictEqual(regs.size, n, 'regiones repetidas');
+}
+
+test('generate produce tableros validos y de solucion unica', () => {
+  for (let seed = 0; seed < 15; seed++) {
+    const board = Q.generate(seed, 8);
+    invariantes(board);
+    assert.strictEqual(Q.countSolutions(8, board.regions, 3), 1,
+      `la semilla ${seed} no dio solucion unica`);
+  }
+});
+
+test('generate funciona en los tres tamanos permitidos', () => {
+  for (const n of Q.ALLOWED_SIZES) {
+    const board = Q.generate(7, n);
+    assert.strictEqual(board.n, n);
+    invariantes(board);
+    assert.strictEqual(Q.countSolutions(n, board.regions, 3), 1);
+  }
+});
+
+test('la misma semilla da el mismo tablero', () => {
+  const a = Q.generate(4242, 8);
+  const b = Q.generate(4242, 8);
+  assert.deepStrictEqual(a.regions, b.regions);
+  assert.deepStrictEqual(a.solution, b.solution);
+});
+
+test('fechas distintas dan tableros distintos', () => {
+  const hoy = Q.generateForDate(new Date(2026, 8, 22), 8);
+  const manana = Q.generateForDate(new Date(2026, 8, 23), 8);
+  assert.notDeepStrictEqual(hoy.regions, manana.regions);
+});
+
+// Review Focus 1: un N invalido tiene que fallar rapido, no colgar el shell.
+test('generate rechaza tamanos invalidos en vez de colgarse', () => {
+  for (const malo of [0, 3, 4, 12, '8', undefined, null, 8.5]) {
+    assert.throws(() => Q.generate(1, malo), /tamano/i,
+      `N=${String(malo)} deberia lanzar`);
+  }
+});
+
+test('growRegions deja exactamente una reina por region', () => {
+  const n = 8;
+  const rand = Q.mulberry32(99);
+  const queens = Q.randomPlacement(n, rand);
+  const regions = Q.growRegions(n, queens, rand);
+
+  assert.strictEqual(regions.length, n * n);
+  assert.ok(regions.every((r) => r >= 0 && r < n), 'quedaron celdas sin asignar');
+
+  const porRegion = new Map();
+  queens.forEach((col, row) => {
+    const reg = regions[row * n + col];
+    porRegion.set(reg, (porRegion.get(reg) || 0) + 1);
+  });
+  assert.strictEqual(porRegion.size, n);
+  for (const cuenta of porRegion.values()) assert.strictEqual(cuenta, 1);
+});
+
+test('las regiones generadas quedan contiguas', () => {
+  for (let seed = 0; seed < 12; seed++) {
+    const board = Q.generate(seed, 8);
+    for (let r = 0; r < 8; r++) {
+      assert.ok(Q.regionContiguous(8, board.regions, r),
+        `region ${r} partida en la semilla ${seed}`);
+    }
+  }
+});

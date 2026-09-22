@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.cristosolar.queens",
+  "name": "Queens",
+  "version": "0.1.0",
+  "author": "CristoSolar",
+  "license": "MIT",
+  "description": "Un puzzle Queens diario en la barra. Coloca una reina por fila, columna y region de color, sin que dos se toquen. El tablero se genera en el equipo a partir de la fecha, con solucion unica garantizada, y guarda tu racha. Sin red, sin dependencias.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Queens",
+    "description": "Puzzle Queens del dia: clic para jugar.",
+    "category": "Juegos",
+    "defaultSection": "right",
+    "allowMultiple": false,
+    "defaults": { "size": 8 },
+    "schema": [
+      {
+        "key": "size",
+        "type": "int",
+        "label": "Tamano del tablero",
+        "min": 7,
+        "max": 9
+      }
+    ]
+  }
+}

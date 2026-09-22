@@ -39,3 +39,56 @@ test('randomPlacement respeta columnas únicas y no adyacencia', () => {
     }
   }
 });
+
+// Tablero 4x4 con regiones en franjas horizontales. Franja por fila implica
+// que la restriccion de region coincide con la de fila, asi que las soluciones
+// son las colocaciones sin columnas repetidas ni reinas adyacentes.
+const FRANJAS_4 = [
+  0, 0, 0, 0,
+  1, 1, 1, 1,
+  2, 2, 2, 2,
+  3, 3, 3, 3,
+];
+
+test('countSolutions corta en el limite', () => {
+  assert.strictEqual(Q.countSolutions(4, FRANJAS_4, 2), 2);
+  assert.strictEqual(Q.countSolutions(4, FRANJAS_4, 1), 1);
+});
+
+test('conflicts marca columna, region y adyacencia', () => {
+  const n = 4;
+  const cells = new Array(n * n).fill(0);
+  cells[0 * n + 0] = 2;   // fila 0, col 0
+  cells[1 * n + 1] = 2;   // fila 1, col 1 — adyacente en diagonal
+  const malos = Q.conflicts(n, FRANJAS_4, cells);
+  assert.deepStrictEqual(malos, [0, 5]);
+});
+
+test('conflicts no marca reinas legales', () => {
+  const n = 4;
+  const cells = new Array(n * n).fill(0);
+  cells[0 * n + 0] = 2;
+  cells[1 * n + 2] = 2;   // dos columnas de distancia, otra region
+  assert.deepStrictEqual(Q.conflicts(n, FRANJAS_4, cells), []);
+});
+
+test('isSolved exige N reinas sin conflictos', () => {
+  const n = 4;
+  const cells = new Array(n * n).fill(0);
+  cells[0 * n + 1] = 2;
+  cells[1 * n + 3] = 2;
+  cells[2 * n + 0] = 2;
+  cells[3 * n + 2] = 2;
+  assert.deepStrictEqual(Q.conflicts(n, FRANJAS_4, cells), []);
+  assert.strictEqual(Q.isSolved(n, FRANJAS_4, cells), true);
+
+  cells[3 * n + 2] = 0;   // falta una reina
+  assert.strictEqual(Q.isSolved(n, FRANJAS_4, cells), false);
+});
+
+test('las marcas no cuentan como reinas', () => {
+  const n = 4;
+  const cells = new Array(n * n).fill(1);   // todo marcado con X
+  assert.deepStrictEqual(Q.conflicts(n, FRANJAS_4, cells), []);
+  assert.strictEqual(Q.isSolved(n, FRANJAS_4, cells), false);
+});

@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const Reg = require('../lib/registry.js');
 const queens = require('../games/queens/logic.js');
+const tango = require('../games/tango/logic.js');
 
 test('el registro conoce Queens y coincide con su meta', () => {
   const entrada = Reg.byId('queens');
@@ -25,4 +26,12 @@ test('los ids son unicos', () => {
 
 test('byId devuelve null para un juego desconocido', () => {
   assert.strictEqual(Reg.byId('buscaminas'), null);
+});
+
+test('el registro conoce Tango y coincide con su meta', () => {
+  const entrada = Reg.byId('tango');
+  assert.ok(entrada, 'tango debe estar registrado');
+  assert.strictEqual(entrada.name, tango.meta.name);
+  assert.strictEqual(entrada.icon, tango.meta.icon);
+  assert.strictEqual(entrada.blurb, tango.meta.blurb);
 });

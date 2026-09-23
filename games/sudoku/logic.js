@@ -194,6 +194,12 @@ function solvedCells(board) {
   return board.solution.slice();
 }
 
+// Tope del valor de una celda, para que la carcasa pueda validar una partida
+// guardada sin saber que significa cada numero.
+function maxCellValue(board) {
+  return board.n;
+}
+
 if (typeof module !== 'undefined') {
   module.exports = {
     VACIO: VACIO, BOX_W: BOX_W, BOX_H: BOX_H,
@@ -203,6 +209,7 @@ if (typeof module !== 'undefined') {
     isSolved: isSolved,
     generate: generate,
     emptyCells: emptyCells,
+    maxCellValue: maxCellValue,
     solvedCells: solvedCells,
     countSolutions: countSolutions,
     randomSolution: randomSolution

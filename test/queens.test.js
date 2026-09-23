@@ -268,3 +268,8 @@ test('solvedCells devuelve el tablero terminado', () => {
   assert.strictEqual(Q.isSolved(board, cells), true);
   assert.deepStrictEqual(Q.conflicts(board, cells), []);
 });
+
+test('maxCellValue declara el tope de una celda', () => {
+  const board = Q.generate(R.mulberry32(1), 8);
+  assert.strictEqual(Q.maxCellValue(board), 2);
+});

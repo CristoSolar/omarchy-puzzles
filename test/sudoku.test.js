@@ -131,3 +131,8 @@ test('generate rechaza tamanos que no sean 6', () => {
     assert.throws(() => S.generate(R.mulberry32(1), malo), /tamano/i);
   }
 });
+
+test('maxCellValue declara el tope de una celda', () => {
+  const board = S.generate(R.mulberry32(1), 6);
+  assert.strictEqual(S.maxCellValue(board), 6);
+});

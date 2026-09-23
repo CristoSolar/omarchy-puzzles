@@ -84,7 +84,8 @@ Panel {
     }
 
     var guardadas = State.restoreInProgress(root.store, root.currentGame,
-                                            root.dayKey, vacias.length)
+                                            root.dayKey, vacias.length,
+                                            root.logic.maxCellValue(root.board))
     root.cells = guardadas ? guardadas : vacias
     root.elapsedMs = guardadas
       ? State.gameState(root.store, root.currentGame).inProgress.elapsedMs : 0

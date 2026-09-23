@@ -39,7 +39,7 @@ test('migra un v1 con partida en curso', () => {
     inProgress: { date: '2026-09-22', cells: [0, 1, 2, 0], elapsedMs: 9000 },
   });
   const st = S.parseState(v1);
-  assert.deepStrictEqual(S.restoreInProgress(st, 'queens', '2026-09-22', 4), [0, 1, 2, 0]);
+  assert.deepStrictEqual(S.restoreInProgress(st, 'queens', '2026-09-22', 4, 2), [0, 1, 2, 0]);
 });
 
 // Review Focus 1: v1 corrupto no debe propagar basura a games.queens.
@@ -131,17 +131,29 @@ test('pendingToday lista los juegos sin resolver hoy', () => {
 test('inProgress es por juego y no se mezcla', () => {
   let st = S.saveInProgress(S.parseState(''), 'queens', '2026-09-22', [2, 0, 0, 0], 5000);
   st = S.saveInProgress(st, 'tango', '2026-09-22', [1, 1, 0, 0], 7000);
-  assert.deepStrictEqual(S.restoreInProgress(st, 'queens', '2026-09-22', 4), [2, 0, 0, 0]);
-  assert.deepStrictEqual(S.restoreInProgress(st, 'tango', '2026-09-22', 4), [1, 1, 0, 0]);
+  assert.deepStrictEqual(S.restoreInProgress(st, 'queens', '2026-09-22', 4, 2), [2, 0, 0, 0]);
+  assert.deepStrictEqual(S.restoreInProgress(st, 'tango', '2026-09-22', 4, 2), [1, 1, 0, 0]);
 });
 
-test('restoreInProgress descarta otra fecha, otro largo y valores fuera de rango', () => {
+test('restoreInProgress descarta otra fecha, otro largo y valores fuera del maximo', () => {
   const st = S.saveInProgress(S.parseState(''), 'queens', '2026-09-22', [0, 1, 2, 0], 5000);
-  assert.strictEqual(S.restoreInProgress(st, 'queens', '2026-09-23', 4), null, 'otra fecha');
-  assert.strictEqual(S.restoreInProgress(st, 'queens', '2026-09-22', 9), null, 'otro largo');
+  assert.deepStrictEqual(S.restoreInProgress(st, 'queens', '2026-09-22', 4, 2), [0, 1, 2, 0]);
+  assert.strictEqual(S.restoreInProgress(st, 'queens', '2026-09-23', 4, 2), null, 'otra fecha');
+  assert.strictEqual(S.restoreInProgress(st, 'queens', '2026-09-22', 9, 2), null, 'otro largo');
 
-  const raro = S.saveInProgress(S.parseState(''), 'queens', '2026-09-22', [0, 1, 99, 0], 5000);
-  assert.strictEqual(S.restoreInProgress(raro, 'queens', '2026-09-22', 4), null, 'valor invalido');
+  const raro = S.saveInProgress(S.parseState(''), 'queens', '2026-09-22', [0, 1, 9, 0], 5000);
+  assert.strictEqual(S.restoreInProgress(raro, 'queens', '2026-09-22', 4, 2), null, 'valor invalido');
+});
+
+// Review Focus 1: con el tope fijo de 8, una partida de Zip se perdia al reabrir.
+test('el maximo es por juego: un camino largo de Zip sobrevive', () => {
+  const camino = [0, 5, 12, 36, 21, 3];
+  const st = S.saveInProgress(S.parseState(''), 'zip', '2026-09-22', camino, 1000);
+
+  assert.deepStrictEqual(S.restoreInProgress(st, 'zip', '2026-09-22', 6, 36), camino,
+    'con maximo 36 el camino vuelve entero');
+  assert.strictEqual(S.restoreInProgress(st, 'zip', '2026-09-22', 6, 8), null,
+    'con un maximo chico se descarta, como debe ser para otro juego');
 });
 
 test('recordSolve limpia la partida en curso de ese juego, no la de los demas', () => {

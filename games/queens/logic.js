@@ -374,6 +374,12 @@ function emptyCells(board) {
   return out;
 }
 
+// Tope del valor de una celda, para que la carcasa pueda validar una partida
+// guardada sin saber que significa cada numero.
+function maxCellValue(board) {
+  return 2;
+}
+
 if (typeof module !== 'undefined') {
   module.exports = {
     meta: meta,
@@ -391,6 +397,7 @@ if (typeof module !== 'undefined') {
     refineToUnique: refineToUnique,
     blockedCells: blockedCells,
     emptyCells: emptyCells,
+    maxCellValue: maxCellValue,
     solvedCells: solvedCells
   };
 }

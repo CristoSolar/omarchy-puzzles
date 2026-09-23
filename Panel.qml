@@ -2,218 +2,128 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Ui
-import "lib/queens.js" as Queens
+import "lib/rng.js" as Rng
 import "lib/state.js" as State
+import "lib/registry.js" as Registry
 
-// Tablero del dia. La clave de fecha se recalcula en cada apertura, nunca se
-// cachea al cargar: el shell corre semanas seguidas y el dia cambia bajo sus
-// pies.
+// Carcasa del popover: alterna entre el menu de juegos y el tablero del juego
+// elegido, y es el unico lugar que toca el disco. No sabe nada del juego
+// cargado mas alla de su contrato.
 //
 // El Panel de qs.Ui solo guarda el estado abierto/cerrado; la ventana la pone
-// KeyboardPanel, anclado al boton de la barra, igual que los paneles de
-// primera parte.
+// KeyboardPanel, anclado al boton de la barra.
 Panel {
   id: root
-  moduleName: "io.github.cristosolar.queens"
-  ipcTarget: "io.github.cristosolar.queens"
+  moduleName: "io.github.cristosolar.puzzles"
+  ipcTarget: "io.github.cristosolar.puzzles"
   manageIpc: false
 
   property var anchorItem: null
   property var hostWidget: null
   readonly property var barIdentity: hostWidget || root
 
-  property int size: 8
+  // Vacio = menu.
+  property string currentGame: ""
+  property var logic: null
   property var board: null
   property var cells: []
   property string dayKey: ""
-  property var badCells: []
-  // Las X que puso el usuario, separadas de las deducidas: recalcular las
-  // automaticas no debe borrar las suyas, y sacar una reina si debe borrar
-  // las que esa reina genero.
-  property var manualMarks: []
-  property var autoMarks: []
   property int elapsedMs: 0
   property bool won: false
   property string errorText: ""
 
-  readonly property string statePath: Quickshell.env("HOME") + "/.local/state/omarchy-queens/state.json"
-  property var gameState: State.parseState("")
-
-  readonly property int cellPixels: 44
-  // El tablero dibujado manda sobre la opcion: mientras no se regenere, `size`
-  // puede haber cambiado y pintar 81 celdas sobre 64 regiones.
-  readonly property int drawnSize: root.board ? root.board.n : root.size
-  readonly property int boardPixels: root.drawnSize * root.cellPixels + (root.drawnSize - 1) * 2
+  readonly property string statePath: Quickshell.env("HOME") + "/.local/state/omarchy-puzzles/state.json"
+  property var store: State.parseState("")
 
   signal solved(int elapsed)
 
-  // Cambiar el tamano en Setup regenera en el acto: sin esto el panel queda
-  // pintando la grilla nueva sobre las regiones viejas, injugable hasta que
-  // cambie el dia.
-  onSizeChanged: if (root.board) newDay()
+  function sizeFor(id) {
+    if (id === "queens") return root.setting("size", 8)
+    var entrada = GameRegistry.logic(id)
+    return entrada ? entrada.meta.defaultSize : 0
+  }
 
-  function newDay() {
-    var now = new Date()
-    root.dayKey = Queens.dateKey(now)
+  function openGame(id) {
+    if (!Registry.byId(id)) return
+    root.currentGame = id
+    root.logic = GameRegistry.logic(id)
+    root.dayKey = Rng.dateKey(new Date())
+    root.newGame()
+  }
+
+  function backToMenu() {
+    saveIfNeeded()
+    clock.stop()
+    root.currentGame = ""
+    root.board = null
+    root.logic = null
+  }
+
+  function newGame() {
     try {
-      root.board = Queens.generateForDate(now, root.size)
+      root.board = root.logic.generate(Rng.mulberry32(Rng.seedForDate(new Date())),
+                                       root.sizeFor(root.currentGame))
       root.errorText = ""
     } catch (e) {
       root.board = null
       root.errorText = "" + e
       return
     }
-    if (State.solvedOn(root.gameState, root.dayKey)) {
-      // Ya resuelto hoy: tras reiniciar el shell, o al abrirlo en otro monitor,
-      // el panel muestra el tablero resuelto en vez de ofrecerlo otra vez.
-      root.cells = solutionCells()
-      root.elapsedMs = root.gameState.lastElapsedMs
-      root.manualMarks = []
-      root.autoMarks = []
-      root.badCells = []
+
+    var vacias = root.logic.emptyCells(root.board)
+
+    if (State.solvedOn(root.store, root.currentGame, root.dayKey)) {
+      // Ya resuelto hoy: tras reiniciar el shell, o en otro monitor, se muestra
+      // el tablero terminado en vez de ofrecerlo de nuevo.
+      root.cells = vacias
+      root.elapsedMs = State.gameState(root.store, root.currentGame).lastElapsedMs
       root.won = true
       return
     }
 
-    var guardadas = State.restoreInProgress(root.gameState, root.dayKey, root.size)
-    if (guardadas) {
-      // Lo guardado son reinas y X propias; las deducidas se recalculan sin
-      // ocupar disco ni poder quedar desincronizadas.
-      var marcas = []
-      for (var k = 0; k < guardadas.length; k++) {
-        if (guardadas[k] === 1) marcas.push(k)
-      }
-      root.manualMarks = marcas
-      root.elapsedMs = root.gameState.inProgress.elapsedMs
-      root.recompute(guardadas)
-    } else {
-      root.manualMarks = []
-      root.autoMarks = []
-      root.cells = blankCells()
-      root.elapsedMs = 0
-      root.badCells = []
-    }
+    var guardadas = State.restoreInProgress(root.store, root.currentGame,
+                                            root.dayKey, vacias.length)
+    root.cells = guardadas ? guardadas : vacias
+    root.elapsedMs = guardadas
+      ? State.gameState(root.store, root.currentGame).inProgress.elapsedMs : 0
     root.won = false
-  }
-
-  function solutionCells() {
-    var out = blankCells()
-    for (var row = 0; row < root.board.n; row++) {
-      out[row * root.board.n + root.board.solution[row]] = 2
-    }
-    return out
-  }
-
-  function blankCells() {
-    var blank = []
-    for (var i = 0; i < root.size * root.size; i++) blank.push(0)
-    return blank
-  }
-
-  function open() {
-    // Si cambio el dia mientras el shell seguia corriendo, el tablero se
-    // regenera al abrir.
-    if (!root.board || root.dayKey !== Queens.dateKey(new Date())) newDay()
-    root.controller.show()
-    if (!root.won) clock.start()
-  }
-
-  function close() {
-    clock.stop()
-    if (root.board && !root.won && !State.solvedOn(root.gameState, root.dayKey)) {
-      root.persist(State.saveInProgress(root.gameState, root.dayKey, root.cells, root.elapsedMs))
-    }
-    root.controller.hide()
-  }
-
-  function persist(next) {
-    root.gameState = next
-    stateFile.setText(State.serializeState(next))
-  }
-
-  function cycle(index) {
-    if (root.won || !root.board) return
-    var next = root.cells.slice()
-    var era = next[index]
-    next[index] = (era + 1) % 3
-
-    // Una X automatica se comporta como vacia al clickearla: el primer clic la
-    // convierte en marca propia, no la saltea.
-    if (era === 1 && root.isAuto(index)) next[index] = 1
-
-    var marcas = []
-    for (var i = 0; i < root.manualMarks.length; i++) {
-      if (root.manualMarks[i] !== index) marcas.push(root.manualMarks[i])
-    }
-    if (next[index] === 1) marcas.push(index)
-    root.manualMarks = marcas
-
-    root.recompute(next)
-    if (Queens.isSolved(root.drawnSize, root.board.regions, root.cells)) {
-      root.won = true
-      clock.stop()
-      root.persist(State.recordSolve(root.gameState, root.dayKey, root.elapsedMs, root.drawnSize))
-      root.solved(root.elapsedMs)
-    }
-  }
-
-  function clear() {
-    if (!root.board) return
-    root.manualMarks = []
-    root.autoMarks = []
-    root.cells = blankCells()
-    root.badCells = []
-    root.won = false
-    root.elapsedMs = 0
     clock.start()
   }
 
-  // Reconstruye la grilla visible: reinas, X manuales y X deducidas de las
-  // reinas presentes. Se llama entera en cada clic, asi sacar una reina limpia
-  // sus marcas sin bookkeeping incremental.
-  function recompute(queenCells) {
-    var next = queenCells.slice()
-    var i
-    for (i = 0; i < next.length; i++) {
-      if (next[i] === 1) next[i] = 0
-    }
-    for (i = 0; i < root.manualMarks.length; i++) {
-      if (next[root.manualMarks[i]] === 0) next[root.manualMarks[i]] = 1
-    }
-
-    var auto = Queens.blockedCells(root.drawnSize, root.board.regions, next)
-    var autos = []
-    for (i = 0; i < auto.length; i++) {
-      if (next[auto[i]] === 0) {
-        next[auto[i]] = 1
-        autos.push(auto[i])
-      }
-    }
-    root.autoMarks = autos
-    root.cells = next
-    root.badCells = Queens.conflicts(root.drawnSize, root.board.regions, next)
+  // Volver al menu guarda igual que cerrar el panel: la partida a medias no se
+  // pierde por navegar.
+  function saveIfNeeded() {
+    if (!root.board || root.won || root.currentGame === "") return
+    if (State.solvedOn(root.store, root.currentGame, root.dayKey)) return
+    root.persist(State.saveInProgress(root.store, root.currentGame,
+                                      root.dayKey, root.cells, root.elapsedMs))
   }
 
-  function isAuto(index) {
-    for (var i = 0; i < root.autoMarks.length; i++) {
-      if (root.autoMarks[i] === index) return true
-    }
-    return false
+  function onSolved() {
+    root.won = true
+    clock.stop()
+    root.persist(State.recordSolve(root.store, root.currentGame, root.dayKey,
+                                   root.elapsedMs, root.sizeFor(root.currentGame)))
+    root.solved(root.elapsedMs)
   }
 
-  function isBad(index) {
-    for (var i = 0; i < root.badCells.length; i++) {
-      if (root.badCells[i] === index) return true
-    }
-    return false
+  function persist(next) {
+    root.store = next
+    stateFile.setText(State.serializeState(next))
   }
 
-  // Tonos repartidos parejo por el circulo cromatico, y luminosidad alternada
-  // para que dos regiones vecinas no se confundan cuando comparten matiz.
-  function regionColor(region) {
-    var hue = (region * 0.61803398875 + 0.08) % 1.0
-    var light = region % 2 === 0 ? 0.70 : 0.56
-    return Qt.hsla(hue, 0.45, light, 1.0)
+  function open() {
+    // El dia se recalcula en cada apertura: el shell corre semanas seguidas.
+    root.dayKey = Rng.dateKey(new Date())
+    root.currentGame = ""
+    root.board = null
+    root.controller.show()
+  }
+
+  function close() {
+    saveIfNeeded()
+    clock.stop()
+    root.controller.hide()
   }
 
   function formatTime(ms) {
@@ -223,8 +133,8 @@ Panel {
     return (mm < 10 ? "0" : "") + mm + ":" + (ss < 10 ? "0" : "") + ss
   }
 
-  // blockAllReads deja la lectura sincrona: sin eso `newDay()` puede correr
-  // antes de que el archivo cargue y perder la partida en curso.
+  // blockAllReads deja la lectura sincrona: sin eso newGame() puede correr antes
+  // de que el archivo cargue y perder la partida en curso.
   FileView {
     id: stateFile
     path: root.statePath
@@ -233,17 +143,16 @@ Panel {
     atomicWrites: true
     printErrors: false
     onLoaded: {
-      root.gameState = State.parseState(stateFile.text())
+      root.store = State.parseState(stateFile.text())
       // Resuelto en otra pantalla: este panel deja de correr su propio reloj.
-      if (root.board && !root.won && State.solvedOn(root.gameState, root.dayKey)) {
+      if (root.board && !root.won && root.currentGame !== ""
+          && State.solvedOn(root.store, root.currentGame, root.dayKey)) {
         clock.stop()
-        root.cells = solutionCells()
-        root.elapsedMs = root.gameState.lastElapsedMs
-        root.badCells = []
+        root.elapsedMs = State.gameState(root.store, root.currentGame).lastElapsedMs
         root.won = true
       }
     }
-    onLoadFailed: root.gameState = State.parseState("")
+    onLoadFailed: root.store = State.parseState("")
     onFileChanged: reload()
   }
 
@@ -262,82 +171,75 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(root.boardPixels + 32)
-    contentHeight: panel.fittedContentHeight(content.implicitHeight)
+    contentWidth: panel.fittedContentWidth(
+      (vista.item ? vista.item.contentWidth : 320) + 32)
+    contentHeight: panel.fittedContentHeight(contenido.implicitHeight)
 
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
-      onCloseRequested: root.close()
+      onCloseRequested: root.currentGame === "" ? root.close() : root.backToMenu()
 
       Column {
-        id: content
+        id: contenido
         anchors.horizontalCenter: parent.horizontalCenter
         spacing: 12
 
-        Item {
-          width: root.boardPixels
-          height: 30
-
-          Text {
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.won
-              ? "Resuelto en " + root.formatTime(root.elapsedMs)
-                + " — racha de " + root.gameState.streak
-              : root.formatTime(root.elapsedMs)
-            font.pixelSize: 17
-            font.bold: root.won
-            color: root.won ? "#6abf69" : root.barForeground
-          }
+        Row {
+          spacing: 12
+          visible: root.currentGame !== ""
 
           Button {
-            anchors.right: parent.right
+            text: "←"
+            onClicked: root.backToMenu()
+          }
+
+          Text {
             anchors.verticalCenter: parent.verticalCenter
-            text: "Limpiar"
-            onClicked: root.clear()
+            text: root.currentGame === "" ? "" : Registry.byId(root.currentGame).name
+            font.pixelSize: 15
+            font.bold: true
+            color: root.barForeground
+          }
+
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: root.won
+              ? "Resuelto en " + root.formatTime(root.elapsedMs) + " — racha de " + root.store.streak
+              : root.formatTime(root.elapsedMs)
+            font.pixelSize: 15
+            color: root.won ? "#6abf69" : root.barForeground
           }
         }
 
         Text {
           visible: root.errorText !== ""
-          width: root.boardPixels
+          width: 320
           text: "No se pudo generar el tablero: " + root.errorText
           color: "#ef5350"
           wrapMode: Text.WordWrap
         }
 
-        Grid {
-          visible: root.board !== null
-          columns: root.drawnSize
-          spacing: 2
+        Loader {
+          id: vista
+          source: root.currentGame === ""
+            ? Qt.resolvedUrl("Menu.qml")
+            : Qt.resolvedUrl(Registry.byId(root.currentGame).board)
 
-          Repeater {
-            model: root.board ? root.drawnSize * root.drawnSize : 0
-
-            Rectangle {
-              id: cell
-              required property int index
-              width: root.cellPixels
-              height: root.cellPixels
-              radius: 3
-              color: root.board ? root.regionColor(root.board.regions[cell.index]) : "transparent"
-              border.width: root.isBad(cell.index) ? 3 : 0
-              border.color: "#e53935"
-
-              Text {
-                anchors.centerIn: parent
-                font.pixelSize: root.cells[cell.index] === 2 ? 26 : 18
-                text: root.cells[cell.index] === 2 ? "♛" : (root.cells[cell.index] === 1 ? "✕" : "")
-                color: root.cells[cell.index] === 2
-                  ? "#141414"
-                  : (root.isAuto(cell.index) ? "#33000000" : "#77000000")
-              }
-
-              MouseArea {
-                anchors.fill: parent
-                onClicked: root.cycle(cell.index)
-              }
+          onLoaded: {
+            if (root.currentGame === "") {
+              item.store = Qt.binding(function () { return root.store })
+              item.dayKey = Qt.binding(function () { return root.dayKey })
+              item.streak = Qt.binding(function () { return root.store.streak })
+              item.foreground = root.barForeground
+              item.chosen.connect(root.openGame)
+            } else {
+              item.logic = root.logic
+              item.board = Qt.binding(function () { return root.board })
+              item.locked = Qt.binding(function () { return root.won })
+              item.adopt(root.cells)
+              item.cellsEdited.connect(function (updated) { root.cells = updated })
+              item.solvedNow.connect(root.onSolved)
             }
           }
         }

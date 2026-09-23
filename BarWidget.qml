@@ -3,23 +3,25 @@ import Quickshell
 import Quickshell.Io
 import qs.Ui
 import "lib/state.js" as State
-import "lib/queens.js" as Queens
+import "lib/registry.js" as Registry
+import "lib/rng.js" as Rng
 
 // Indicador del puzzle del dia. Monta el panel y lo abre con un clic.
 BarWidget {
   id: root
-  moduleName: "io.github.cristosolar.queens"
+  moduleName: "io.github.cristosolar.puzzles"
 
   readonly property string icon: "♛"
   readonly property int size: root.setting("size", 8)
 
-  property var gameState: State.parseState("")
+  property var store: State.parseState("")
   // `new Date()` no notifica nada, asi que el binding necesita una propiedad
   // que si cambie: sin esto la corona sigue diciendo "resuelto" todo el dia
   // siguiente, porque el shell corre semanas sin reiniciarse.
-  property string today: Queens.dateKey(new Date())
-  readonly property bool pendiente: root.gameState.lastSolved !== root.today
-  readonly property int streak: root.gameState.streak
+  property string today: Rng.dateKey(new Date())
+  readonly property var pendientes: State.pendingToday(root.store, Registry.ids(), root.today)
+  readonly property bool pendiente: root.pendientes.length > 0
+  readonly property int streak: root.store.streak
 
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
@@ -50,17 +52,17 @@ BarWidget {
     interval: 60000
     running: true
     repeat: true
-    onTriggered: root.today = Queens.dateKey(new Date())
+    onTriggered: root.today = Rng.dateKey(new Date())
   }
 
   FileView {
     id: stateFile
-    path: Quickshell.env("HOME") + "/.local/state/omarchy-queens/state.json"
+    path: Quickshell.env("HOME") + "/.local/state/omarchy-puzzles/state.json"
     watchChanges: true
     blockAllReads: true
     printErrors: false
-    onLoaded: root.gameState = State.parseState(stateFile.text())
-    onLoadFailed: root.gameState = State.parseState("")
+    onLoaded: root.store = State.parseState(stateFile.text())
+    onLoadFailed: root.store = State.parseState("")
     onFileChanged: reload()
   }
 
@@ -87,8 +89,9 @@ BarWidget {
     active: root.opened || !root.pendiente
     dimmed: root.pendiente && !root.opened
     tooltipText: root.pendiente
-      ? "Queens de hoy sin resolver — racha de " + root.streak
-      : "Queens de hoy resuelto — racha de " + root.streak
+      ? "Faltan " + root.pendientes.length + " de " + Registry.ids().length
+        + " hoy — racha de " + root.streak
+      : "Todos resueltos hoy — racha de " + root.streak
     onPressed: function (b) {
       if (panelLoader.item) panelLoader.item.toggle()
     }

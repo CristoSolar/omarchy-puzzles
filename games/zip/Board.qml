@@ -27,6 +27,16 @@ Item {
 
   readonly property var camino: root.cells.length > 0 ? Logic.pathOf(root.cells) : []
 
+  readonly property int trazo: 16
+
+  function cellCenterX(index) {
+    return (index % root.drawnSize + 0.5) * root.cellPixels
+  }
+
+  function cellCenterY(index) {
+    return (Math.floor(index / root.drawnSize) + 0.5) * root.cellPixels
+  }
+
   function cellAt(px, py) {
     if (px < 0 || py < 0 || px >= root.sidePixels || py >= root.sidePixels) return -1
     var col = Math.floor(px / root.cellPixels)
@@ -90,43 +100,97 @@ Item {
     width: root.sidePixels
     height: root.sidePixels
 
+    // Tres capas: las celdas de fondo, la linea del camino, y los numeros
+    // encima. El camino se dibuja como tramos entre centros de celdas vecinas,
+    // con las puntas redondeadas: dos tramos que se cruzan en una celda dejan
+    // la esquina continua sin dibujar nada extra.
     Repeater {
       model: root.board ? root.drawnSize * root.drawnSize : 0
 
       Rectangle {
-        id: celda
         required property int index
-        readonly property int numero: root.board ? root.board.checkpoints[celda.index] : 0
-        readonly property bool enCamino: root.cells[celda.index] > 0
-        readonly property bool esPunta: root.camino.length > 0
-                                        && root.camino[root.camino.length - 1] === celda.index
-
-        x: (celda.index % root.drawnSize) * root.cellPixels
-        y: Math.floor(celda.index / root.drawnSize) * root.cellPixels
+        x: (index % root.drawnSize) * root.cellPixels
+        y: Math.floor(index / root.drawnSize) * root.cellPixels
         width: root.cellPixels
         height: root.cellPixels
-        // El camino se pinta con el acento: mas firme en la punta.
-        color: celda.enCamino
-          ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, celda.esPunta ? 0.55 : 0.32)
-          : Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.05)
+        color: "transparent"
         border.width: 1
         border.color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.15)
+      }
+    }
 
-        Rectangle {
+    Repeater {
+      model: Math.max(0, root.camino.length - 1)
+
+      Rectangle {
+        id: tramo
+        required property int index
+        readonly property int desde: root.camino[tramo.index]
+        readonly property int hasta: root.camino[tramo.index + 1]
+        readonly property bool horizontal:
+          Math.floor(tramo.desde / root.drawnSize) === Math.floor(tramo.hasta / root.drawnSize)
+
+        readonly property real x1: root.cellCenterX(tramo.desde)
+        readonly property real y1: root.cellCenterY(tramo.desde)
+        readonly property real x2: root.cellCenterX(tramo.hasta)
+        readonly property real y2: root.cellCenterY(tramo.hasta)
+
+        x: Math.min(tramo.x1, tramo.x2) - (tramo.horizontal ? 0 : root.trazo / 2)
+        y: Math.min(tramo.y1, tramo.y2) - (tramo.horizontal ? root.trazo / 2 : 0)
+        width: tramo.horizontal ? Math.abs(tramo.x2 - tramo.x1) : root.trazo
+        height: tramo.horizontal ? root.trazo : Math.abs(tramo.y2 - tramo.y1)
+        color: Color.accent
+      }
+    }
+
+    // Tapones redondeados en cada celda del camino: cierran las esquinas y le
+    // dan punta al arranque y al final.
+    Repeater {
+      model: root.camino.length
+
+      Rectangle {
+        required property int index
+        readonly property int celda: root.camino[index]
+        readonly property bool esPunta: index === root.camino.length - 1
+
+        x: root.cellCenterX(celda) - root.trazo / 2
+        y: root.cellCenterY(celda) - root.trazo / 2
+        width: root.trazo
+        height: root.trazo
+        radius: root.trazo / 2
+        color: Color.accent
+        scale: esPunta ? 1.35 : 1.0
+
+        Behavior on scale {
+          NumberAnimation { duration: 90 }
+        }
+      }
+    }
+
+    Repeater {
+      model: root.board ? root.drawnSize * root.drawnSize : 0
+
+      Rectangle {
+        id: numero
+        required property int index
+        readonly property int valor: root.board ? root.board.checkpoints[numero.index] : 0
+
+        visible: numero.valor > 0
+        x: root.cellCenterX(numero.index) - width / 2
+        y: root.cellCenterY(numero.index) - height / 2
+        width: 30
+        height: 30
+        radius: 15
+        color: Color.accent
+        border.width: 2
+        border.color: Color.background
+
+        Text {
           anchors.centerIn: parent
-          visible: celda.numero > 0
-          width: 30
-          height: 30
-          radius: 15
-          color: Color.accent
-
-          Text {
-            anchors.centerIn: parent
-            text: celda.numero
-            font.pixelSize: 15
-            font.bold: true
-            color: Color.background
-          }
+          text: numero.valor
+          font.pixelSize: 15
+          font.bold: true
+          color: Color.background
         }
       }
     }

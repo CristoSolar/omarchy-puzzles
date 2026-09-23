@@ -122,19 +122,34 @@ Panel {
   function saveIfNeeded() {
     if (!root.board || root.won || root.currentGame === "") return
     if (State.solvedOn(root.store, root.currentGame, root.dayKey)) return
-    root.persist(State.saveInProgress(root.store, root.currentGame,
-                                      root.dayKey, root.cells, root.elapsedMs))
+    var juego = root.currentGame, dia = root.dayKey
+    var celdas = root.cells, transcurrido = root.elapsedMs
+    root.mutate(function (st) {
+      return State.saveInProgress(st, juego, dia, celdas, transcurrido)
+    })
   }
 
   function onSolved() {
     root.won = true
     clock.stop()
-    root.persist(State.recordSolve(root.store, root.currentGame, root.dayKey,
-                                   root.elapsedMs, root.sizeFor(root.currentGame)))
+    fiesta.lanzar()
+    var juego = root.currentGame, dia = root.dayKey
+    var transcurrido = root.elapsedMs, tam = root.sizeFor(root.currentGame)
+    root.mutate(function (st) {
+      return State.recordSolve(st, juego, dia, transcurrido, tam)
+    })
     root.solved(root.elapsedMs)
   }
 
-  function persist(next) {
+  // Toda escritura se calcula sobre lo que hay en disco AHORA, no sobre la copia
+  // en memoria. Hay un panel por monitor, cada uno con su propio `store`: sin
+  // releer, el que escribe ultimo vuelca su copia entera y resucita lo que el
+  // otro ya habia cambiado -- resolver en una pantalla se perdia cuando la otra
+  // guardaba una partida a medias.
+  function mutate(cambio) {
+    stateFile.reload()
+    var actual = State.parseState(stateFile.text())
+    var next = cambio(actual)
     root.store = next
     stateFile.setText(State.serializeState(next))
   }
@@ -203,6 +218,74 @@ Panel {
     contentWidth: panel.fittedContentWidth(
       Math.max(contenido.implicitWidth, vista.item ? vista.item.contentWidth : 320) + 32)
     contentHeight: panel.fittedContentHeight(contenido.implicitHeight)
+
+    // Festejo al resolver. Una sola animacion mueve `progreso`, y cada particula
+    // deriva su posicion de ese numero: no hay una animacion por particula.
+    Item {
+      id: fiesta
+      anchors.fill: parent
+      z: 10
+      visible: fiesta.progreso > 0 && fiesta.progreso < 1
+
+      property real progreso: 0
+      readonly property int cuantas: 20
+      readonly property real alcance: Math.min(parent.width, parent.height) * 0.55
+
+      function lanzar() {
+        fiesta.progreso = 0
+        rafaga.restart()
+      }
+
+      NumberAnimation {
+        id: rafaga
+        target: fiesta
+        property: "progreso"
+        from: 0
+        to: 1
+        duration: 950
+        easing.type: Easing.OutCubic
+      }
+
+      // Anillo que se abre desde el centro.
+      Rectangle {
+        anchors.centerIn: parent
+        width: fiesta.alcance * 2 * fiesta.progreso
+        height: width
+        radius: width / 2
+        color: "transparent"
+        border.width: 3
+        border.color: Color.accent
+        opacity: 1 - fiesta.progreso
+      }
+
+      Repeater {
+        model: fiesta.cuantas
+
+        Rectangle {
+          id: chispa
+          required property int index
+          // Angulo repartido parejo, con una desviacion fija por particula para
+          // que no salga un circulo perfecto.
+          readonly property real angulo: chispa.index * (2 * Math.PI / fiesta.cuantas)
+                                         + (chispa.index % 3) * 0.12
+          readonly property real lejos: fiesta.alcance
+                                        * (0.5 + 0.5 * ((chispa.index * 7) % 10) / 10)
+                                        * fiesta.progreso
+
+          width: 7
+          height: 7
+          radius: 3.5
+          color: Color.accent
+          opacity: 1 - fiesta.progreso * fiesta.progreso
+          scale: 1 - 0.5 * fiesta.progreso
+
+          x: parent.width / 2 + Math.cos(chispa.angulo) * chispa.lejos - width / 2
+          // La gravedad las hace caer sobre el final del vuelo.
+          y: parent.height / 2 + Math.sin(chispa.angulo) * chispa.lejos - height / 2
+             + 46 * fiesta.progreso * fiesta.progreso
+        }
+      }
+    }
 
     PanelKeyCatcher {
       id: keyCatcher

@@ -1,8 +1,12 @@
 # Queens para Omarchy
 
-Un puzzle Queens diario en la barra de [Omarchy](https://omarchy.org), al estilo
-del juego de LinkedIn. El tablero se genera en tu equipo a partir de la fecha del
-día, con solución única garantizada, y guarda tu racha.
+Cuatro puzzles diarios en la barra de [Omarchy](https://omarchy.org), al estilo
+de los de LinkedIn: **Queens**, **Tango**, **Mini Sudoku** y **Zip**. Un clic
+abre el menú con los juegos y su estado del día; se elige uno y se juega ahí
+mismo.
+
+Cada tablero se genera en tu equipo a partir de la fecha, con solución única
+garantizada. Una racha global cuenta los días en que resolviste al menos uno.
 
 Sin red, sin dependencias, sin telemetría.
 
@@ -16,6 +20,14 @@ legales mientras no sean vecinas inmediatas.
 
 Un clic en una celda cicla entre vacía, marca ✕ y reina ♛. Las reinas en
 conflicto se pintan con borde rojo mientras juegas.
+
+### Zip
+
+Un camino que pasa por **todas** las celdas exactamente una vez, tocando los
+números en orden ascendente. Se juega arrastrando: el camino se extiende a la
+celda vecina que toca el puntero, y volver sobre la anteúltima lo acorta.
+
+Empezar desde el número 1 reinicia el camino.
 
 ## Instalación
 

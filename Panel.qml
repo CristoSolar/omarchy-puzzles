@@ -99,8 +99,14 @@ Panel {
   // en cuyo caso adoptaria celdas vacias. Adoptar tambien aca cubre el orden
   // inverso, y adoptar dos veces es idempotente.
   // Agnostico del juego: las celdas vacias las declara su propia logica.
+  //
+  // Funciona tambien sobre un tablero ya resuelto: limpiar el puzzle del dia
+  // para rejugarlo es justamente para lo que sirve el boton. La racha no se
+  // mueve -- ya subio hoy -- y `saveIfNeeded` no pisa el estado de un dia
+  // resuelto, asi que la rejugada no deja rastro salvo que mejore el tiempo.
   function clearBoard() {
-    if (!root.board || root.won) return
+    if (!root.board) return
+    root.won = false
     root.cells = root.logic.emptyCells(root.board)
     root.elapsedMs = 0
     adoptInBoard()
@@ -249,7 +255,7 @@ Panel {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             text: "Limpiar"
-            enabled: !root.won
+            enabled: root.board !== null
             onClicked: root.clearBoard()
           }
         }

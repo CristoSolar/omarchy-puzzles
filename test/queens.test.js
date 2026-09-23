@@ -1,36 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert');
-const Q = require('../lib/queens.js');
-
-test('mulberry32 es determinista y acotado', () => {
-  const a = Q.mulberry32(12345);
-  const b = Q.mulberry32(12345);
-  for (let i = 0; i < 100; i++) {
-    const v = a();
-    assert.strictEqual(v, b());
-    assert.ok(v >= 0 && v < 1, `valor fuera de rango: ${v}`);
-  }
-});
-
-test('dateKey usa la fecha local, no UTC', () => {
-  // 23:30 local del 22 de septiembre. En una zona al oeste de UTC esto ya es
-  // el 23 en UTC; la clave tiene que seguir siendo el 22.
-  const d = new Date(2026, 8, 22, 23, 30, 0);
-  assert.strictEqual(Q.dateKey(d), '2026-09-22');
-});
-
-test('seedForDate es estable por día y distinta entre días', () => {
-  const manana = new Date(2026, 8, 22, 9, 0, 0);
-  const noche = new Date(2026, 8, 22, 22, 0, 0);
-  const otroDia = new Date(2026, 8, 23, 9, 0, 0);
-  assert.strictEqual(Q.seedForDate(manana), Q.seedForDate(noche));
-  assert.notStrictEqual(Q.seedForDate(manana), Q.seedForDate(otroDia));
-});
+const Q = require('../games/queens/logic.js');
+const R = require('../lib/rng.js');
 
 test('randomPlacement respeta columnas únicas y no adyacencia', () => {
   for (let s = 0; s < 50; s++) {
     const n = 8;
-    const cols = Q.randomPlacement(n, Q.mulberry32(s));
+    const cols = Q.randomPlacement(n, R.mulberry32(s));
     assert.strictEqual(cols.length, n);
     assert.strictEqual(new Set(cols).size, n, 'columnas repetidas');
     for (let row = 1; row < n; row++) {
@@ -50,6 +26,8 @@ const FRANJAS_4 = [
   3, 3, 3, 3,
 ];
 
+const FRANJAS_4_BOARD = { n: 4, regions: FRANJAS_4, solution: [1, 3, 0, 2] };
+
 test('countSolutions corta en el limite', () => {
   assert.strictEqual(Q.countSolutions(4, FRANJAS_4, 2), 2);
   assert.strictEqual(Q.countSolutions(4, FRANJAS_4, 1), 1);
@@ -60,7 +38,7 @@ test('conflicts marca columna, region y adyacencia', () => {
   const cells = new Array(n * n).fill(0);
   cells[0 * n + 0] = 2;   // fila 0, col 0
   cells[1 * n + 1] = 2;   // fila 1, col 1 — adyacente en diagonal
-  const malos = Q.conflicts(n, FRANJAS_4, cells);
+  const malos = Q.conflicts(FRANJAS_4_BOARD, cells);
   assert.deepStrictEqual(malos, [0, 5]);
 });
 
@@ -69,7 +47,7 @@ test('conflicts no marca reinas legales', () => {
   const cells = new Array(n * n).fill(0);
   cells[0 * n + 0] = 2;
   cells[1 * n + 2] = 2;   // dos columnas de distancia, otra region
-  assert.deepStrictEqual(Q.conflicts(n, FRANJAS_4, cells), []);
+  assert.deepStrictEqual(Q.conflicts(FRANJAS_4_BOARD, cells), []);
 });
 
 test('isSolved exige N reinas sin conflictos', () => {
@@ -79,18 +57,18 @@ test('isSolved exige N reinas sin conflictos', () => {
   cells[1 * n + 3] = 2;
   cells[2 * n + 0] = 2;
   cells[3 * n + 2] = 2;
-  assert.deepStrictEqual(Q.conflicts(n, FRANJAS_4, cells), []);
-  assert.strictEqual(Q.isSolved(n, FRANJAS_4, cells), true);
+  assert.deepStrictEqual(Q.conflicts(FRANJAS_4_BOARD, cells), []);
+  assert.strictEqual(Q.isSolved(FRANJAS_4_BOARD, cells), true);
 
   cells[3 * n + 2] = 0;   // falta una reina
-  assert.strictEqual(Q.isSolved(n, FRANJAS_4, cells), false);
+  assert.strictEqual(Q.isSolved(FRANJAS_4_BOARD, cells), false);
 });
 
 test('las marcas no cuentan como reinas', () => {
   const n = 4;
   const cells = new Array(n * n).fill(1);   // todo marcado con X
-  assert.deepStrictEqual(Q.conflicts(n, FRANJAS_4, cells), []);
-  assert.strictEqual(Q.isSolved(n, FRANJAS_4, cells), false);
+  assert.deepStrictEqual(Q.conflicts(FRANJAS_4_BOARD, cells), []);
+  assert.strictEqual(Q.isSolved(FRANJAS_4_BOARD, cells), false);
 });
 
 test('findSolutions devuelve las colocaciones, no solo la cuenta', () => {
@@ -148,7 +126,7 @@ function invariantes(board) {
 
 test('generate produce tableros validos y de solucion unica', () => {
   for (let seed = 0; seed < 15; seed++) {
-    const board = Q.generate(seed, 8);
+    const board = Q.generate(R.mulberry32(seed), 8);
     invariantes(board);
     assert.strictEqual(Q.countSolutions(8, board.regions, 3), 1,
       `la semilla ${seed} no dio solucion unica`);
@@ -156,8 +134,8 @@ test('generate produce tableros validos y de solucion unica', () => {
 });
 
 test('generate funciona en los tres tamanos permitidos', () => {
-  for (const n of Q.ALLOWED_SIZES) {
-    const board = Q.generate(7, n);
+  for (const n of Q.meta.sizes) {
+    const board = Q.generate(R.mulberry32(7), n);
     assert.strictEqual(board.n, n);
     invariantes(board);
     assert.strictEqual(Q.countSolutions(n, board.regions, 3), 1);
@@ -165,29 +143,29 @@ test('generate funciona en los tres tamanos permitidos', () => {
 });
 
 test('la misma semilla da el mismo tablero', () => {
-  const a = Q.generate(4242, 8);
-  const b = Q.generate(4242, 8);
+  const a = Q.generate(R.mulberry32(4242), 8);
+  const b = Q.generate(R.mulberry32(4242), 8);
   assert.deepStrictEqual(a.regions, b.regions);
   assert.deepStrictEqual(a.solution, b.solution);
 });
 
 test('fechas distintas dan tableros distintos', () => {
-  const hoy = Q.generateForDate(new Date(2026, 8, 22), 8);
-  const manana = Q.generateForDate(new Date(2026, 8, 23), 8);
+  const hoy = Q.generate(R.mulberry32(R.seedForDate(new Date(2026, 8, 22))), 8);
+  const manana = Q.generate(R.mulberry32(R.seedForDate(new Date(2026, 8, 23))), 8);
   assert.notDeepStrictEqual(hoy.regions, manana.regions);
 });
 
 // Review Focus 1: un N invalido tiene que fallar rapido, no colgar el shell.
 test('generate rechaza tamanos invalidos en vez de colgarse', () => {
   for (const malo of [0, 3, 4, 12, '8', undefined, null, 8.5]) {
-    assert.throws(() => Q.generate(1, malo), /tamano/i,
+    assert.throws(() => Q.generate(R.mulberry32(1), malo), /tamano/i,
       `N=${String(malo)} deberia lanzar`);
   }
 });
 
 test('growRegions deja exactamente una reina por region', () => {
   const n = 8;
-  const rand = Q.mulberry32(99);
+  const rand = R.mulberry32(99);
   const queens = Q.randomPlacement(n, rand);
   const regions = Q.growRegions(n, queens, rand);
 
@@ -205,7 +183,7 @@ test('growRegions deja exactamente una reina por region', () => {
 
 test('las regiones generadas quedan contiguas', () => {
   for (let seed = 0; seed < 12; seed++) {
-    const board = Q.generate(seed, 8);
+    const board = Q.generate(R.mulberry32(seed), 8);
     for (let r = 0; r < 8; r++) {
       assert.ok(Q.regionContiguous(8, board.regions, r),
         `region ${r} partida en la semilla ${seed}`);
@@ -217,7 +195,7 @@ test('blockedCells marca fila, columna, region y vecinas de cada reina', () => {
   const n = 4;
   const cells = new Array(n * n).fill(0);
   cells[1 * n + 1] = 2;   // reina en (1,1), region 1 por franjas
-  const bloqueadas = new Set(Q.blockedCells(n, FRANJAS_4, cells));
+  const bloqueadas = new Set(Q.blockedCells(FRANJAS_4_BOARD, cells));
 
   assert.ok(bloqueadas.has(1 * n + 3), 'resto de su fila');
   assert.ok(bloqueadas.has(3 * n + 1), 'resto de su columna');
@@ -238,7 +216,7 @@ test('blockedCells marca toda la region, no solo las vecinas', () => {
   ];
   const cells = new Array(n * n).fill(0);
   cells[0] = 2;   // reina en (0,0), region 0
-  const bloqueadas = new Set(Q.blockedCells(n, regiones, cells));
+  const bloqueadas = new Set(Q.blockedCells({ n: 4, regions: regiones, solution: [0,0,0,0] }, cells));
   assert.ok(bloqueadas.has(1), 'misma region, adyacente');
   assert.ok(bloqueadas.has(4), 'misma region, la pata de la L');
 });
@@ -248,12 +226,36 @@ test('blockedCells no marca celdas ya ocupadas por otra reina', () => {
   const cells = new Array(n * n).fill(0);
   cells[0 * n + 0] = 2;
   cells[1 * n + 1] = 2;   // en conflicto con la anterior, pero es una reina
-  const bloqueadas = Q.blockedCells(n, FRANJAS_4, cells);
+  const bloqueadas = Q.blockedCells(FRANJAS_4_BOARD, cells);
   assert.ok(!bloqueadas.includes(0), 'una reina no se marca con X');
   assert.ok(!bloqueadas.includes(5), 'la otra tampoco');
 });
 
 test('sin reinas no hay nada bloqueado', () => {
   const n = 4;
-  assert.deepStrictEqual(Q.blockedCells(n, FRANJAS_4, new Array(n * n).fill(0)), []);
+  assert.deepStrictEqual(Q.blockedCells(FRANJAS_4_BOARD, new Array(n * n).fill(0)), []);
+});
+
+test('meta declara lo que el menu necesita mostrar', () => {
+  assert.strictEqual(Q.meta.id, 'queens');
+  assert.ok(Q.meta.name.length > 0);
+  assert.ok(Q.meta.icon.length > 0);
+  assert.ok(Q.meta.blurb.length > 0);
+  assert.deepStrictEqual(Q.meta.sizes, [7, 8, 9]);
+  assert.ok(Q.meta.sizes.includes(Q.meta.defaultSize));
+});
+
+test('emptyCells da una grilla vacia del tamano del tablero', () => {
+  const board = Q.generate(R.mulberry32(1), 8);
+  const cells = Q.emptyCells(board);
+  assert.strictEqual(cells.length, 64);
+  assert.ok(cells.every((v) => v === 0));
+  assert.strictEqual(Q.isSolved(board, cells), false);
+});
+
+test('generate con el mismo rand sembrado igual da el mismo tablero', () => {
+  const a = Q.generate(R.mulberry32(99), 8);
+  const b = Q.generate(R.mulberry32(99), 8);
+  assert.deepStrictEqual(a.regions, b.regions);
+  assert.deepStrictEqual(a.solution, b.solution);
 });

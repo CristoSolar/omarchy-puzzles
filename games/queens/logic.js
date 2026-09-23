@@ -1,3 +1,30 @@
+// Queens: una reina por fila, columna y region, sin que dos se toquen.
+//
+// Cumple el contrato de juego: generate/conflicts/isSolved/emptyCells reciben y
+// devuelven datos que solo este archivo y su Board.qml interpretan. No importa
+// nada -- ni rng.js -- porque el motor JS de QML solo admite `.import`, que Node
+// no parsea: el azar llega ya sembrado por parametro.
+
+var meta = {
+  id: 'queens',
+  name: 'Queens',
+  icon: '\u265b',
+  sizes: [7, 8, 9],
+  defaultSize: 8,
+  blurb: 'Una reina por fila, columna y region, sin que dos se toquen.'
+};
+
+// Mezcla local: rng.js no se puede importar desde aca, y son seis lineas.
+function shuffledLocal(values, rand) {
+  var out = values.slice();
+  for (var i = out.length - 1; i > 0; i--) {
+    var j = Math.floor(rand() * (i + 1));
+    var tmp = out[i];
+    out[i] = out[j];
+    out[j] = tmp;
+  }
+  return out;
+}
 
 // Una reina por fila y por columna, y ninguna tocando a otra. Como ya hay una
 // sola reina por fila, la unica adyacencia posible es entre filas consecutivas.
@@ -11,7 +38,7 @@ function randomPlacement(n, rand) {
 
   function fill(row) {
     if (row === n) return true;
-    var order = shuffled(all, rand);
+    var order = shuffledLocal(all, rand);
     for (var k = 0; k < order.length; k++) {
       var col = order[k];
       if (used[col]) continue;
@@ -57,7 +84,7 @@ function countSolutions(n, regions, limit) {
 
 // Conflictos de la grilla que esta jugando el usuario. A diferencia del solver,
 // acepta grillas incompletas: reporta solo lo que ya esta mal.
-function conflicts(n, regions, cells) {
+function conflictsIn(n, regions, cells) {
   var queens = [];
   var i;
   for (i = 0; i < n * n; i++) {
@@ -89,15 +116,14 @@ function conflicts(n, regions, cells) {
   return out;
 }
 
-function isSolved(n, regions, cells) {
+function isSolvedIn(n, regions, cells) {
   var queens = 0;
   for (var i = 0; i < n * n; i++) {
     if (cells[i] === 2) queens++;
   }
-  return queens === n && conflicts(n, regions, cells).length === 0;
+  return queens === n && conflictsIn(n, regions, cells).length === 0;
 }
 
-var ALLOWED_SIZES = [7, 8, 9];
 var REGROW_ATTEMPTS = 40;
 var PLACEMENT_ATTEMPTS = 25;
 var REFINE_ATTEMPTS = 400;
@@ -139,8 +165,8 @@ function growRegions(n, queens, rand) {
 }
 
 function isAllowedSize(n) {
-  for (var i = 0; i < ALLOWED_SIZES.length; i++) {
-    if (n === ALLOWED_SIZES[i]) return true;
+  for (var i = 0; i < meta.sizes.length; i++) {
+    if (n === meta.sizes[i]) return true;
   }
   return false;
 }
@@ -148,25 +174,20 @@ function isAllowedSize(n) {
 // Genera hasta dar con un tablero de solucion unica. Los dos presupuestos de
 // reintento estan para que un caso dificil falle con error en vez de girar
 // para siempre dentro del shell.
-function generate(seed, n) {
-  if (!isAllowedSize(n)) {
-    throw new Error('tamano no permitido: ' + String(n) + ' (use 7, 8 o 9)');
+function generate(rand, size) {
+  if (!isAllowedSize(size)) {
+    throw new Error('tamano no permitido: ' + String(size) + ' (use 7, 8 o 9)');
   }
-  var rand = mulberry32(seed);
   for (var p = 0; p < PLACEMENT_ATTEMPTS; p++) {
-    var queens = randomPlacement(n, rand);
+    var queens = randomPlacement(size, rand);
     for (var g = 0; g < REGROW_ATTEMPTS; g++) {
-      var regions = growRegions(n, queens, rand);
-      if (refineToUnique(n, regions, queens, rand)) {
-        return { n: n, regions: regions, solution: queens };
+      var regions = growRegions(size, queens, rand);
+      if (refineToUnique(size, regions, queens, rand)) {
+        return { n: size, regions: regions, solution: queens };
       }
     }
   }
-  throw new Error('sin tablero unico para n=' + n + ' semilla=' + seed);
-}
-
-function generateForDate(date, n) {
-  return generate(seedForDate(date), n);
+  throw new Error('sin tablero unico para n=' + size);
 }
 
 // Igual que countSolutions pero devolviendo las colocaciones. El refinado del
@@ -252,13 +273,13 @@ function refineToUnique(n, regions, queens, rand) {
     for (var row = 0; row < n; row++) {
       if (alt[row] !== queens[row]) filas.push(row);
     }
-    filas = shuffled(filas, rand);
+    filas = shuffledLocal(filas, rand);
 
     var movido = false;
     for (var f = 0; f < filas.length && !movido; f++) {
       var idx = filas[f] * n + alt[filas[f]];
       var desde = regions[idx];
-      var destinos = shuffled(neighborRegions(n, regions, idx), rand);
+      var destinos = shuffledLocal(neighborRegions(n, regions, idx), rand);
       for (var d = 0; d < destinos.length; d++) {
         regions[idx] = destinos[d];
         if (regionContiguous(n, regions, desde)) {
@@ -305,7 +326,7 @@ function neighborRegions(n, regions, idx) {
 // Celdas que quedan muertas con las reinas ya puestas: su fila, su columna, su
 // region y sus ocho vecinas. El panel las pinta con una X tenue para separarlas
 // de las que marco el usuario.
-function blockedCells(n, regions, cells) {
+function blockedIn(n, regions, cells) {
   var bloqueada = [];
   var i;
   for (i = 0; i < n * n; i++) bloqueada.push(false);
@@ -332,22 +353,33 @@ function blockedCells(n, regions, cells) {
   return out;
 }
 
+// Fachada del contrato: la carcasa solo conoce (board, cells).
+function conflicts(board, cells) { return conflictsIn(board.n, board.regions, cells); }
+function isSolved(board, cells) { return isSolvedIn(board.n, board.regions, cells); }
+function blockedCells(board, cells) { return blockedIn(board.n, board.regions, cells); }
+
+function emptyCells(board) {
+  var out = [];
+  for (var i = 0; i < board.n * board.n; i++) out.push(0);
+  return out;
+}
+
 if (typeof module !== 'undefined') {
   module.exports = {
+    meta: meta,
     randomPlacement: randomPlacement,
     countSolutions: countSolutions,
     conflicts: conflicts,
     isSolved: isSolved,
     growRegions: growRegions,
     generate: generate,
-    generateForDate: generateForDate,
-    ALLOWED_SIZES: ALLOWED_SIZES,
     REGROW_ATTEMPTS: REGROW_ATTEMPTS,
     PLACEMENT_ATTEMPTS: PLACEMENT_ATTEMPTS,
     REFINE_ATTEMPTS: REFINE_ATTEMPTS,
     findSolutions: findSolutions,
     regionContiguous: regionContiguous,
     refineToUnique: refineToUnique,
-    blockedCells: blockedCells
+    blockedCells: blockedCells,
+    emptyCells: emptyCells
   };
 }

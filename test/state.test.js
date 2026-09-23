@@ -2,22 +2,14 @@ const test = require('node:test');
 const assert = require('node:assert');
 const S = require('../lib/state.js');
 
-// Review Focus 2: primera ejecucion y archivo corrupto dan lo mismo.
 test('parseState sobrevive a basura sin lanzar', () => {
   for (const entrada of ['', '   ', '{', 'null', '[]', '42', '"hola"', undefined]) {
     const st = S.parseState(entrada);
-    assert.strictEqual(st.streak, 0, `entrada ${JSON.stringify(entrada)}`);
-    assert.strictEqual(st.lastSolved, '');
-    assert.deepStrictEqual(st.best, {});
-    assert.strictEqual(st.inProgress, null);
+    assert.strictEqual(st.version, 2, `entrada ${JSON.stringify(entrada)}`);
+    assert.strictEqual(st.streak, 0);
+    assert.strictEqual(st.lastSolvedDay, '');
+    assert.deepStrictEqual(st.games, {});
   }
-});
-
-test('parseState completa campos faltantes', () => {
-  const st = S.parseState('{"streak": 7}');
-  assert.strictEqual(st.streak, 7);
-  assert.strictEqual(st.lastSolved, '');
-  assert.deepStrictEqual(st.best, {});
 });
 
 test('previousKey cruza meses y anios', () => {
@@ -27,94 +19,140 @@ test('previousKey cruza meses y anios', () => {
   assert.strictEqual(S.previousKey('2024-03-01'), '2024-02-29');
 });
 
-test('recordSolve encadena dias consecutivos', () => {
-  let st = S.parseState('');
-  st = S.recordSolve(st, '2026-09-20', 90000, 8);
-  assert.strictEqual(st.streak, 1);
-  st = S.recordSolve(st, '2026-09-21', 80000, 8);
-  assert.strictEqual(st.streak, 2);
-  st = S.recordSolve(st, '2026-09-22', 70000, 8);
+test('migra un state.json v1 de Queens conservando racha y record', () => {
+  const v1 = JSON.stringify({
+    lastSolved: '2026-09-22', streak: 5, lastElapsedMs: 61000,
+    best: { '8': 55000 }, inProgress: null,
+  });
+  const st = S.parseState(v1);
+  assert.strictEqual(st.version, 2);
+  assert.strictEqual(st.streak, 5, 'la racha se conserva');
+  assert.strictEqual(st.lastSolvedDay, '2026-09-22');
+  assert.strictEqual(st.games.queens.lastSolved, '2026-09-22');
+  assert.strictEqual(st.games.queens.lastElapsedMs, 61000);
+  assert.strictEqual(st.games.queens.best['8'], 55000);
+});
+
+test('migra un v1 con partida en curso', () => {
+  const v1 = JSON.stringify({
+    lastSolved: '', streak: 0, best: {},
+    inProgress: { date: '2026-09-22', cells: [0, 1, 2, 0], elapsedMs: 9000 },
+  });
+  const st = S.parseState(v1);
+  assert.deepStrictEqual(S.restoreInProgress(st, 'queens', '2026-09-22', 4), [0, 1, 2, 0]);
+});
+
+// Review Focus 1: v1 corrupto no debe propagar basura a games.queens.
+test('un v1 corrupto da estado v2 por defecto, no un games.queens roto', () => {
+  const st = S.parseState('{"lastSolved": "2026-09-22", "streak":');
+  assert.strictEqual(st.version, 2);
+  assert.strictEqual(st.streak, 0);
+  assert.deepStrictEqual(st.games, {});
+});
+
+test('un archivo v2 se lee tal cual, sin volver a migrar', () => {
+  const v2 = JSON.stringify({
+    version: 2, streak: 3, lastSolvedDay: '2026-09-20',
+    games: { tango: { lastSolved: '2026-09-20', lastElapsedMs: 1000, best: {}, inProgress: null } },
+  });
+  const st = S.parseState(v2);
   assert.strictEqual(st.streak, 3);
+  assert.strictEqual(st.games.tango.lastSolved, '2026-09-20');
+  assert.strictEqual(st.games.queens, undefined, 'no inventa juegos');
 });
 
-test('recordSolve reinicia la racha tras un hueco', () => {
-  let st = S.recordSolve(S.parseState(''), '2026-09-20', 90000, 8);
-  st = S.recordSolve(st, '2026-09-22', 70000, 8);
+test('gameState da valores por defecto para un juego sin historia', () => {
+  const g = S.gameState(S.parseState(''), 'zip');
+  assert.strictEqual(g.lastSolved, '');
+  assert.strictEqual(g.lastElapsedMs, 0);
+  assert.deepStrictEqual(g.best, {});
+  assert.strictEqual(g.inProgress, null);
+});
+
+test('recordSolve encadena la racha global por dia', () => {
+  let st = S.parseState('');
+  st = S.recordSolve(st, 'queens', '2026-09-20', 90000, 8);
   assert.strictEqual(st.streak, 1);
+  st = S.recordSolve(st, 'queens', '2026-09-21', 80000, 8);
+  assert.strictEqual(st.streak, 2);
 });
 
-test('resolver dos veces el mismo dia no mueve la racha', () => {
-  let st = S.recordSolve(S.parseState(''), '2026-09-22', 90000, 8);
-  st = S.recordSolve(st, '2026-09-22', 50000, 8);
+// Review Focus 4: la racha es global, una vez por dia.
+test('resolver un segundo juego el mismo dia no mueve la racha', () => {
+  let st = S.recordSolve(S.parseState(''), 'queens', '2026-09-22', 90000, 8);
   assert.strictEqual(st.streak, 1);
-  assert.strictEqual(st.best['8'], 50000, 'el mejor tiempo si debe mejorar');
+  st = S.recordSolve(st, 'tango', '2026-09-22', 30000, 6);
+  assert.strictEqual(st.streak, 1, 'sigue siendo un dia');
+  assert.strictEqual(st.games.tango.lastSolved, '2026-09-22', 'pero tango queda resuelto');
+  assert.strictEqual(st.games.queens.lastSolved, '2026-09-22');
 });
 
-test('best guarda el mejor tiempo por tamano', () => {
-  let st = S.recordSolve(S.parseState(''), '2026-09-20', 60000, 8);
-  st = S.recordSolve(st, '2026-09-21', 90000, 8);
-  assert.strictEqual(st.best['8'], 60000, 'un tiempo peor no debe pisar el mejor');
-  st = S.recordSolve(st, '2026-09-22', 40000, 9);
-  assert.strictEqual(st.best['9'], 40000);
-  assert.strictEqual(st.best['8'], 60000);
+test('la racha se reinicia tras un hueco y con un dia futuro', () => {
+  let st = S.recordSolve(S.parseState(''), 'queens', '2026-09-20', 1000, 8);
+  st = S.recordSolve(st, 'queens', '2026-09-22', 1000, 8);
+  assert.strictEqual(st.streak, 1, 'hueco');
+
+  let futuro = S.recordSolve(S.parseState(''), 'queens', '2027-01-05', 1000, 8);
+  futuro = S.recordSolve(futuro, 'queens', '2026-09-22', 1000, 8);
+  assert.strictEqual(futuro.streak, 1);
+  assert.ok(Number.isFinite(futuro.streak));
+});
+
+test('best es por juego y por tamano, y solo mejora', () => {
+  let st = S.recordSolve(S.parseState(''), 'queens', '2026-09-20', 60000, 8);
+  st = S.recordSolve(st, 'queens', '2026-09-21', 90000, 8);
+  assert.strictEqual(st.games.queens.best['8'], 60000);
+  st = S.recordSolve(st, 'queens', '2026-09-22', 40000, 9);
+  assert.strictEqual(st.games.queens.best['9'], 40000);
+  assert.strictEqual(st.games.queens.best['8'], 60000);
 });
 
 test('recordSolve no muta el estado recibido', () => {
   const antes = S.parseState('');
-  const despues = S.recordSolve(antes, '2026-09-22', 1000, 8);
+  const despues = S.recordSolve(antes, 'queens', '2026-09-22', 1000, 8);
   assert.strictEqual(antes.streak, 0);
   assert.strictEqual(despues.streak, 1);
 });
 
-// Review Focus 4: reloj adelantado deja lastSolved en el futuro.
-test('un lastSolved futuro reinicia la racha en vez de romperse', () => {
-  let st = S.recordSolve(S.parseState(''), '2027-01-05', 1000, 8);
-  st = S.recordSolve(st, '2026-09-22', 1000, 8);
-  assert.strictEqual(st.streak, 1);
-  assert.ok(Number.isFinite(st.streak));
+test('solvedOn distingue por juego y por dia', () => {
+  const st = S.recordSolve(S.parseState(''), 'queens', '2026-09-22', 1000, 8);
+  assert.strictEqual(S.solvedOn(st, 'queens', '2026-09-22'), true);
+  assert.strictEqual(S.solvedOn(st, 'queens', '2026-09-23'), false);
+  assert.strictEqual(S.solvedOn(st, 'tango', '2026-09-22'), false);
 });
 
-// Review Focus 3: partida a medias de otra fecha o de otro tamano.
-test('restoreInProgress solo devuelve una partida de hoy y del tamano actual', () => {
-  const cells = new Array(64).fill(0);
-  let st = S.saveInProgress(S.parseState(''), '2026-09-22', cells, 5000);
-
-  assert.deepStrictEqual(S.restoreInProgress(st, '2026-09-22', 8), cells);
-  assert.strictEqual(S.restoreInProgress(st, '2026-09-23', 8), null, 'otra fecha');
-  assert.strictEqual(S.restoreInProgress(st, '2026-09-22', 9), null, 'otro tamano');
-  assert.strictEqual(S.restoreInProgress(S.parseState(''), '2026-09-22', 8), null);
+test('pendingToday lista los juegos sin resolver hoy', () => {
+  const st = S.recordSolve(S.parseState(''), 'queens', '2026-09-22', 1000, 8);
+  const ids = ['queens', 'tango', 'sudoku', 'zip'];
+  assert.deepStrictEqual(S.pendingToday(st, ids, '2026-09-22'), ['tango', 'sudoku', 'zip']);
+  assert.deepStrictEqual(S.pendingToday(st, ids, '2026-09-23'), ids);
 });
 
-test('restoreInProgress descarta celdas con valores fuera de rango', () => {
-  const cells = new Array(64).fill(0);
-  cells[3] = 9;
-  const st = S.saveInProgress(S.parseState(''), '2026-09-22', cells, 5000);
-  assert.strictEqual(S.restoreInProgress(st, '2026-09-22', 8), null);
+test('inProgress es por juego y no se mezcla', () => {
+  let st = S.saveInProgress(S.parseState(''), 'queens', '2026-09-22', [2, 0, 0, 0], 5000);
+  st = S.saveInProgress(st, 'tango', '2026-09-22', [1, 1, 0, 0], 7000);
+  assert.deepStrictEqual(S.restoreInProgress(st, 'queens', '2026-09-22', 4), [2, 0, 0, 0]);
+  assert.deepStrictEqual(S.restoreInProgress(st, 'tango', '2026-09-22', 4), [1, 1, 0, 0]);
+});
+
+test('restoreInProgress descarta otra fecha, otro largo y valores fuera de rango', () => {
+  const st = S.saveInProgress(S.parseState(''), 'queens', '2026-09-22', [0, 1, 2, 0], 5000);
+  assert.strictEqual(S.restoreInProgress(st, 'queens', '2026-09-23', 4), null, 'otra fecha');
+  assert.strictEqual(S.restoreInProgress(st, 'queens', '2026-09-22', 9), null, 'otro largo');
+
+  const raro = S.saveInProgress(S.parseState(''), 'queens', '2026-09-22', [0, 1, 99, 0], 5000);
+  assert.strictEqual(S.restoreInProgress(raro, 'queens', '2026-09-22', 4), null, 'valor invalido');
+});
+
+test('recordSolve limpia la partida en curso de ese juego, no la de los demas', () => {
+  let st = S.saveInProgress(S.parseState(''), 'tango', '2026-09-22', [1, 0, 0, 0], 1000);
+  st = S.saveInProgress(st, 'queens', '2026-09-22', [2, 0, 0, 0], 1000);
+  st = S.recordSolve(st, 'queens', '2026-09-22', 5000, 8);
+  assert.strictEqual(st.games.queens.inProgress, null);
+  assert.notStrictEqual(st.games.tango.inProgress, null, 'tango sigue a medias');
 });
 
 test('serializeState y parseState son un viaje de ida y vuelta', () => {
-  const st = S.recordSolve(S.parseState(''), '2026-09-22', 12345, 8);
+  const st = S.recordSolve(S.parseState(''), 'queens', '2026-09-22', 12345, 8);
   assert.deepStrictEqual(S.parseState(S.serializeState(st)), st);
-});
-
-// Hallazgos 2/4/5 de la revision: barra y panel tienen que poder preguntar
-// "¿ya esta resuelto hoy?" sin recalcularlo cada uno por su cuenta.
-test('solvedOn reconoce el dia ya resuelto', () => {
-  const st = S.recordSolve(S.parseState(''), '2026-09-22', 61000, 8);
-  assert.strictEqual(S.solvedOn(st, '2026-09-22'), true);
-  assert.strictEqual(S.solvedOn(st, '2026-09-23'), false);
-  assert.strictEqual(S.solvedOn(S.parseState(''), '2026-09-22'), false);
-});
-
-test('recordSolve guarda el tiempo del ultimo resuelto, no solo el mejor', () => {
-  let st = S.recordSolve(S.parseState(''), '2026-09-21', 40000, 8);
-  st = S.recordSolve(st, '2026-09-22', 95000, 8);
-  assert.strictEqual(st.best['8'], 40000, 'el mejor sigue siendo el mejor');
-  assert.strictEqual(st.lastElapsedMs, 95000, 'el panel muestra el de hoy, no el record');
-});
-
-test('parseState recupera y valida lastElapsedMs', () => {
-  assert.strictEqual(S.parseState('{"lastElapsedMs": 1234}').lastElapsedMs, 1234);
-  assert.strictEqual(S.parseState('{"lastElapsedMs": -5}').lastElapsedMs, 0, 'negativo se descarta');
-  assert.strictEqual(S.parseState('').lastElapsedMs, 0);
 });

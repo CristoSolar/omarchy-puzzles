@@ -1,4 +1,5 @@
 import QtQuick
+import qs.Commons
 import "logic.js" as Logic
 
 // Tablero de Zip. Se juega arrastrando: el camino se extiende a la celda vecina
@@ -104,9 +105,12 @@ Item {
         y: Math.floor(celda.index / root.drawnSize) * root.cellPixels
         width: root.cellPixels
         height: root.cellPixels
-        color: celda.enCamino ? (celda.esPunta ? "#4f7cac" : "#3f5d7d") : "#3d4454"
+        // El camino se pinta con el acento: mas firme en la punta.
+        color: celda.enCamino
+          ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, celda.esPunta ? 0.55 : 0.32)
+          : Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.05)
         border.width: 1
-        border.color: "#00000044"
+        border.color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.15)
 
         Rectangle {
           anchors.centerIn: parent
@@ -114,14 +118,14 @@ Item {
           width: 30
           height: 30
           radius: 15
-          color: "#ffd166"
+          color: Color.accent
 
           Text {
             anchors.centerIn: parent
             text: celda.numero
             font.pixelSize: 15
             font.bold: true
-            color: "#1a1a1a"
+            color: Color.background
           }
         }
       }

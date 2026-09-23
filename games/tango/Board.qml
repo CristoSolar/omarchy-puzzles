@@ -1,4 +1,5 @@
 import QtQuick
+import qs.Commons
 import "logic.js" as Logic
 
 // Tablero de Tango. Las celdas se posicionan a mano porque las restricciones se
@@ -76,17 +77,22 @@ Item {
         width: root.cellPixels
         height: root.cellPixels
         radius: 6
-        color: root.isGiven(celda.index) ? "#2f3542" : "#3d4454"
+        // Fondo del tema; las dadas se asientan un poco mas que las libres.
+        color: root.isGiven(celda.index)
+          ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.13)
+          : Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.06)
         border.width: root.isBad(celda.index) ? 3 : 1
-        border.color: root.isBad(celda.index) ? "#e53935" : "#00000033"
+        border.color: root.isBad(celda.index)
+          ? Color.urgent
+          : Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.22)
 
         Text {
           anchors.centerIn: parent
           text: root.simbolo(root.cells[celda.index])
           font.pixelSize: 26
-          // Las dadas se ven mas firmes que lo que puso el jugador.
-          color: root.isGiven(celda.index) ? "#ffd166" : "#e6e6e6"
-          opacity: root.isGiven(celda.index) ? 1.0 : 0.92
+          // Las dadas van en acento; lo que pone el jugador, en el color de texto.
+          color: root.isGiven(celda.index) ? Color.accent : Color.foreground
+          opacity: root.isGiven(celda.index) ? 1.0 : 0.88
         }
 
         MouseArea {
@@ -115,7 +121,7 @@ Item {
         text: marca.c.eq ? "=" : "×"
         font.pixelSize: 14
         font.bold: true
-        color: "#c9d1d9"
+        color: Color.accent
       }
     }
   }

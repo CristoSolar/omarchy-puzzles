@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.Commons
 import qs.Ui
 import "lib/rng.js" as Rng
 import "lib/state.js" as State
@@ -238,7 +239,7 @@ Panel {
                   ? "Resuelto en " + root.formatTime(root.elapsedMs) + " · racha " + root.store.streak
                   : root.formatTime(root.elapsedMs)
                 font.pixelSize: 12
-                color: root.won ? "#6abf69" : root.barForeground
+                color: root.won ? Color.accent : root.barForeground
                 opacity: root.won ? 1.0 : 0.75
               }
             }
@@ -257,7 +258,7 @@ Panel {
           visible: root.errorText !== ""
           width: 320
           text: "No se pudo generar el tablero: " + root.errorText
-          color: "#ef5350"
+          color: Color.urgent
           wrapMode: Text.WordWrap
         }
 

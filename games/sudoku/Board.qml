@@ -1,4 +1,5 @@
 import QtQuick
+import qs.Commons
 import "logic.js" as Logic
 
 // Tablero de Mini Sudoku. La entrada no es clickear una celda sino elegirla y
@@ -87,23 +88,31 @@ Item {
           y: celda.fila * root.cellPixels
           width: root.cellPixels
           height: root.cellPixels
-          color: root.selected === celda.index ? "#4b5666"
-                 : (root.isGiven(celda.index) ? "#2f3542" : "#3d4454")
+          color: root.selected === celda.index
+            ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.28)
+            : (root.isGiven(celda.index)
+               ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.11)
+               : Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.05))
           border.width: root.isBad(celda.index) ? 2 : 0
-          border.color: "#e53935"
+          border.color: Color.urgent
 
           Rectangle {
             anchors.right: parent.right
             width: (celda.col + 1) % Logic.BOX_W === 0 && celda.col + 1 < root.drawnSize ? 2 : 1
             height: parent.height
-            color: width > 1 ? "#0f1115" : "#00000033"
+            // Las junturas de caja van en acento; las de celda, apenas insinuadas.
+            color: width > 1
+              ? Color.accent
+              : Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.15)
           }
 
           Rectangle {
             anchors.bottom: parent.bottom
             height: (celda.fila + 1) % Logic.BOX_H === 0 && celda.fila + 1 < root.drawnSize ? 2 : 1
             width: parent.width
-            color: height > 1 ? "#0f1115" : "#00000033"
+            color: height > 1
+              ? Color.accent
+              : Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.15)
           }
 
           Text {
@@ -111,7 +120,7 @@ Item {
             text: root.cells[celda.index] > 0 ? root.cells[celda.index] : ""
             font.pixelSize: 22
             font.bold: root.isGiven(celda.index)
-            color: root.isGiven(celda.index) ? "#ffd166" : "#e6e6e6"
+            color: root.isGiven(celda.index) ? Color.accent : Color.foreground
           }
 
           MouseArea {
@@ -137,14 +146,16 @@ Item {
           width: root.cellPixels - 4
           height: root.padHeight
           radius: 6
-          color: hover.hovered && root.selected >= 0 ? "#4b5666" : "#39404e"
+          color: hover.hovered && root.selected >= 0
+            ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.30)
+            : Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.08)
           opacity: root.selected >= 0 ? 1.0 : 0.45
 
           Text {
             anchors.centerIn: parent
             text: tecla.digito
             font.pixelSize: 20
-            color: "#e6e6e6"
+            color: Color.foreground
           }
 
           HoverHandler { id: hover }

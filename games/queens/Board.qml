@@ -1,4 +1,5 @@
 import QtQuick
+import qs.Commons
 import "logic.js" as Logic
 
 // Tablero de Queens. Solo sabe de su juego: importa su propia logica -- pasarla
@@ -82,12 +83,30 @@ Item {
     return false
   }
 
-  // Tonos repartidos por razon aurea con luminosidad alternada, para que dos
-  // regiones vecinas no se confundan.
+  // Las regiones tienen que ser N colores distinguibles -- es la regla del
+  // juego, no decoracion -- pero salen de un arco de matiz alrededor del acento
+  // del tema, asi cambian solas cuando cambia el tema de Omarchy.
+  readonly property real arco: 0.30
+
+  function regionHue(region) {
+    var base = Color.accent.hslHue
+    if (isNaN(base)) base = 0.58            // acento gris: no tiene matiz propio
+    var paso = root.drawnSize > 1 ? root.arco / (root.drawnSize - 1) : 0
+    return (base - root.arco / 2 + region * paso + 1.0) % 1.0
+  }
+
+  function regionLight(region) {
+    return [0.36, 0.52, 0.68][region % 3]
+  }
+
   function regionColor(region) {
-    var hue = (region * 0.61803398875 + 0.08) % 1.0
-    var light = region % 2 === 0 ? 0.70 : 0.56
-    return Qt.hsla(hue, 0.45, light, 1.0)
+    return Qt.hsla(root.regionHue(region), 0.42, root.regionLight(region), 1.0)
+  }
+
+  // Tinta que contrasta contra la region: en las claras la del fondo, en las
+  // oscuras la del texto.
+  function regionInk(region) {
+    return root.regionLight(region) > 0.5 ? Color.background : Color.foreground
   }
 
   function cycle(index) {
@@ -128,15 +147,16 @@ Item {
         radius: 3
         color: root.board ? root.regionColor(root.board.regions[cell.index]) : "transparent"
         border.width: root.isBad(cell.index) ? 3 : 0
-        border.color: "#e53935"
+        border.color: Color.urgent
 
         Text {
           anchors.centerIn: parent
           font.pixelSize: root.cells[cell.index] === 2 ? 26 : 18
           text: root.cells[cell.index] === 2 ? "♛" : (root.cells[cell.index] === 1 ? "✕" : "")
-          color: root.cells[cell.index] === 2
-            ? "#141414"
-            : (root.isAuto(cell.index) ? "#33000000" : "#77000000")
+          color: root.regionInk(root.board ? root.board.regions[cell.index] : 0)
+          // Las X deducidas se ven mas tenues que las que puso el jugador.
+          opacity: root.cells[cell.index] === 2 ? 1.0
+                   : (root.isAuto(cell.index) ? 0.35 : 0.7)
         }
 
         MouseArea {

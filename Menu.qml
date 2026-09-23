@@ -1,4 +1,5 @@
 import QtQuick
+import qs.Commons
 import "lib/registry.js" as Registry
 import "lib/state.js" as State
 
@@ -11,7 +12,7 @@ Item {
   property var store: null
   property string dayKey: ""
   property int streak: 0
-  property color foreground: "#e0e0e0"
+  property color foreground: Color.foreground
 
   signal chosen(string gameId)
 
@@ -50,7 +51,9 @@ Item {
         width: root.contentWidth
         height: root.rowHeight
         radius: 6
-        color: hover.hovered ? "#22ffffff" : "transparent"
+        color: hover.hovered
+          ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.16)
+          : "transparent"
 
         Row {
           anchors.fill: parent

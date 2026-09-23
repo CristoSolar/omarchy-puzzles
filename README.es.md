@@ -51,6 +51,18 @@ o a mano en `~/.config/omarchy/shell.json`, dentro de `bar.layout`:
 { "id": "io.github.cristosolar.puzzles" }
 ```
 
+## Desinstalar
+
+```bash
+omarchy plugin remove io.github.cristosolar.puzzles
+```
+
+Después sacá su entrada de `bar.layout` en `~/.config/omarchy/shell.json`.
+
+Tu racha y tus mejores tiempos quedan en `~/.local/state/omarchy-puzzles/`;
+borrá esa carpeta si también los querés sacar. El plugin no escribe en ningún
+otro lado.
+
 ## Opciones
 
 | Opción | Valores | Por defecto | Qué hace |

@@ -13,8 +13,6 @@ least one.
 
 No network. No dependencies. No telemetry.
 
-![Omarchy Puzzles](docs/preview.png)
-
 ## The games
 
 ### Queens ♛
@@ -71,6 +69,17 @@ hand in `~/.config/omarchy/shell.json`, inside `bar.layout`:
 ```json
 { "id": "io.github.cristosolar.puzzles" }
 ```
+
+## Uninstall
+
+```bash
+omarchy plugin remove io.github.cristosolar.puzzles
+```
+
+Then drop its entry from `bar.layout` in `~/.config/omarchy/shell.json`.
+
+Your streak and best times stay in `~/.local/state/omarchy-puzzles/`; delete that
+folder to remove them too. The plugin writes nothing anywhere else.
 
 ## Options
 

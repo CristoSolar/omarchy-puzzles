@@ -259,3 +259,12 @@ test('generate con el mismo rand sembrado igual da el mismo tablero', () => {
   assert.deepStrictEqual(a.regions, b.regions);
   assert.deepStrictEqual(a.solution, b.solution);
 });
+
+test('solvedCells devuelve el tablero terminado', () => {
+  const board = Q.generate(R.mulberry32(3), 8);
+  const cells = Q.solvedCells(board);
+  assert.strictEqual(cells.length, 64);
+  assert.strictEqual(cells.filter((v) => v === 2).length, 8, 'ocho reinas');
+  assert.strictEqual(Q.isSolved(board, cells), true);
+  assert.deepStrictEqual(Q.conflicts(board, cells), []);
+});

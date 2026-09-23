@@ -37,6 +37,7 @@ Panel {
 
   signal solved(int elapsed)
 
+
   function sizeFor(id) {
     if (id === "queens") return root.setting("size", 8)
     var entrada = GameRegistry.logic(id)
@@ -75,7 +76,7 @@ Panel {
     if (State.solvedOn(root.store, root.currentGame, root.dayKey)) {
       // Ya resuelto hoy: tras reiniciar el shell, o en otro monitor, se muestra
       // el tablero terminado en vez de ofrecerlo de nuevo.
-      root.cells = vacias
+      root.cells = root.logic.solvedCells(root.board)
       root.elapsedMs = State.gameState(root.store, root.currentGame).lastElapsedMs
       root.won = true
       adoptInBoard()
@@ -189,8 +190,10 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
+    // El ancho sale de la columna entera: encabezado incluido. Calcularlo solo
+    // desde el tablero dejaba el encabezado desbordando la tarjeta.
     contentWidth: panel.fittedContentWidth(
-      (vista.item ? vista.item.contentWidth : 320) + 32)
+      Math.max(contenido.implicitWidth, vista.item ? vista.item.contentWidth : 320) + 32)
     contentHeight: panel.fittedContentHeight(contenido.implicitHeight)
 
     PanelKeyCatcher {
@@ -203,33 +206,46 @@ Panel {
         anchors.horizontalCenter: parent.horizontalCenter
         spacing: 12
 
-        Row {
-          spacing: 12
+        Item {
           visible: root.currentGame !== ""
+          width: Math.max(vista.item ? vista.item.contentWidth : 320, fila.implicitWidth)
+          height: fila.implicitHeight
+
+          Row {
+            id: fila
+            anchors.left: parent.left
+            spacing: 10
+
+            Button {
+              text: "←"
+              onClicked: root.backToMenu()
+            }
+
+            Column {
+              anchors.verticalCenter: parent.verticalCenter
+              spacing: 1
+
+              Text {
+                text: root.currentGame === "" ? "" : Registry.byId(root.currentGame).name
+                font.pixelSize: 15
+                font.bold: true
+                color: root.barForeground
+              }
+
+              Text {
+                text: root.won
+                  ? "Resuelto en " + root.formatTime(root.elapsedMs) + " · racha " + root.store.streak
+                  : root.formatTime(root.elapsedMs)
+                font.pixelSize: 12
+                color: root.won ? "#6abf69" : root.barForeground
+                opacity: root.won ? 1.0 : 0.75
+              }
+            }
+          }
 
           Button {
-            text: "←"
-            onClicked: root.backToMenu()
-          }
-
-          Text {
+            anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            text: root.currentGame === "" ? "" : Registry.byId(root.currentGame).name
-            font.pixelSize: 15
-            font.bold: true
-            color: root.barForeground
-          }
-
-          Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.won
-              ? "Resuelto en " + root.formatTime(root.elapsedMs) + " — racha de " + root.store.streak
-              : root.formatTime(root.elapsedMs)
-            font.pixelSize: 15
-            color: root.won ? "#6abf69" : root.barForeground
-          }
-
-          Button {
             text: "Limpiar"
             enabled: !root.won
             onClicked: root.clearBoard()

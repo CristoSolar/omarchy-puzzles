@@ -358,6 +358,16 @@ function conflicts(board, cells) { return conflictsIn(board.n, board.regions, ce
 function isSolved(board, cells) { return isSolvedIn(board.n, board.regions, cells); }
 function blockedCells(board, cells) { return blockedIn(board.n, board.regions, cells); }
 
+// El tablero terminado, para mostrar un dia ya resuelto sin que la carcasa
+// tenga que saber como se ve una solucion de este juego.
+function solvedCells(board) {
+  var out = emptyCells(board);
+  for (var row = 0; row < board.n; row++) {
+    out[row * board.n + board.solution[row]] = 2;
+  }
+  return out;
+}
+
 function emptyCells(board) {
   var out = [];
   for (var i = 0; i < board.n * board.n; i++) out.push(0);
@@ -380,6 +390,7 @@ if (typeof module !== 'undefined') {
     regionContiguous: regionContiguous,
     refineToUnique: refineToUnique,
     blockedCells: blockedCells,
-    emptyCells: emptyCells
+    emptyCells: emptyCells,
+    solvedCells: solvedCells
   };
 }

@@ -78,12 +78,133 @@ function isSolved(board, cells) {
   return conflicts(board, cells).length === 0;
 }
 
+function shuffledLocal(values, rand) {
+  var out = values.slice();
+  for (var i = out.length - 1; i > 0; i--) {
+    var j = Math.floor(rand() * (i + 1));
+    var tmp = out[i];
+    out[i] = out[j];
+    out[j] = tmp;
+  }
+  return out;
+}
+
+function rangeOf(cuantos) {
+  var out = [];
+  for (var i = 0; i < cuantos; i++) out.push(i);
+  return out;
+}
+
+function isAllowedSize(n) {
+  for (var i = 0; i < meta.sizes.length; i++) {
+    if (n === meta.sizes[i]) return true;
+  }
+  return false;
+}
+
+// Puede ir el digito en la celda, mirando fila, columna y caja.
+function puedeIr(cells, idx, valor, n) {
+  var f = rowOf(idx, n), c = colOf(idx, n), b = boxOf(idx, n);
+  for (var i = 0; i < n * n; i++) {
+    if (i === idx || cells[i] !== valor) continue;
+    if (rowOf(i, n) === f || colOf(i, n) === c || boxOf(i, n) === b) return false;
+  }
+  return true;
+}
+
+function randomSolution(rand, n) {
+  var cells = [];
+  var i;
+  for (i = 0; i < n * n; i++) cells.push(VACIO);
+  var digitos = rangeOf(n);
+  for (i = 0; i < digitos.length; i++) digitos[i] += 1;
+
+  function fill(idx) {
+    if (idx === n * n) return true;
+    var orden = shuffledLocal(digitos, rand);
+    for (var k = 0; k < orden.length; k++) {
+      if (!puedeIr(cells, idx, orden[k], n)) continue;
+      cells[idx] = orden[k];
+      if (fill(idx + 1)) return true;
+      cells[idx] = VACIO;
+    }
+    return false;
+  }
+
+  if (!fill(0)) throw new Error('sin solucion inicial para n=' + n);
+  return cells;
+}
+
+function countSolutions(board, limit) {
+  var n = board.n;
+  var cells = board.givens.slice();
+  var found = 0;
+
+  function fill(idx) {
+    if (found >= limit) return;
+    if (idx === n * n) {
+      found++;
+      return;
+    }
+    if (cells[idx] !== VACIO) {
+      fill(idx + 1);
+      return;
+    }
+    for (var v = 1; v <= n; v++) {
+      if (!puedeIr(cells, idx, v, n)) continue;
+      cells[idx] = v;
+      fill(idx + 1);
+      cells[idx] = VACIO;
+      if (found >= limit) return;
+    }
+  }
+
+  fill(0);
+  return found;
+}
+
+// Grilla completa, despues cavar huecos en orden aleatorio, revirtiendo el que
+// deje mas de una solucion. No hace falta piso de dadas: a diferencia de Tango,
+// aca la unicidad se agota sola y el cavado se frena.
+function generate(rand, size) {
+  if (!isAllowedSize(size)) {
+    throw new Error('tamano no permitido: ' + String(size) + ' (use 6)');
+  }
+  var n = size;
+  var solution = randomSolution(rand, n);
+  var board = { n: n, givens: solution.slice(), solution: solution };
+
+  var orden = shuffledLocal(rangeOf(n * n), rand);
+  for (var i = 0; i < orden.length; i++) {
+    var celda = orden[i];
+    var valor = board.givens[celda];
+    if (valor === VACIO) continue;
+    board.givens[celda] = VACIO;
+    if (countSolutions(board, 2) !== 1) board.givens[celda] = valor;
+  }
+
+  return board;
+}
+
+function emptyCells(board) {
+  return board.givens.slice();
+}
+
+function solvedCells(board) {
+  return board.solution.slice();
+}
+
 if (typeof module !== 'undefined') {
   module.exports = {
     VACIO: VACIO, BOX_W: BOX_W, BOX_H: BOX_H,
     meta: meta,
     rowOf: rowOf, colOf: colOf, boxOf: boxOf,
     conflicts: conflicts,
-    isSolved: isSolved
+    isSolved: isSolved,
+    generate: generate,
+    emptyCells: emptyCells,
+    solvedCells: solvedCells,
+    countSolutions: countSolutions,
+    randomSolution: randomSolution
   };
 }

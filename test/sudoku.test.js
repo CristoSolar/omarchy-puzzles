@@ -78,3 +78,56 @@ test('isSolved exige grilla llena y sin conflictos', () => {
   incompleta[0] = 0;
   assert.strictEqual(S.isSolved(b, incompleta), false);
 });
+
+const R = require('../lib/rng.js');
+
+test('randomSolution da una grilla completa y legal', () => {
+  for (let s = 0; s < 20; s++) {
+    const cells = S.randomSolution(R.mulberry32(s), N);
+    const b = tablero({ solution: cells.slice() });
+    assert.ok(cells.every((v) => v >= 1 && v <= 6), 'todos los digitos puestos');
+    assert.deepStrictEqual(S.conflicts(b, cells), [], `semilla ${s} ilegal`);
+  }
+});
+
+// Review Focus 5: sin unicidad el jugador puede completar una grilla legal
+// distinta y el juego no se la aceptaria.
+test('generate produce tableros de solucion unica', () => {
+  for (let s = 0; s < 8; s++) {
+    const board = S.generate(R.mulberry32(s), 6);
+    assert.strictEqual(S.countSolutions(board, 3), 1, `semilla ${s} no es unica`);
+    assert.strictEqual(S.isSolved(board, board.solution), true);
+  }
+});
+
+test('las dadas coinciden con la solucion y dejan celdas por llenar', () => {
+  const board = S.generate(R.mulberry32(3), 6);
+  let dadas = 0;
+  for (let i = 0; i < 36; i++) {
+    if (board.givens[i] !== 0) {
+      dadas++;
+      assert.strictEqual(board.givens[i], board.solution[i], `dada ${i} no coincide`);
+    }
+  }
+  assert.ok(dadas > 0 && dadas < 36, `dadas fuera de rango: ${dadas}`);
+});
+
+test('emptyCells devuelve las dadas y solvedCells la solucion', () => {
+  const board = S.generate(R.mulberry32(6), 6);
+  assert.deepStrictEqual(S.emptyCells(board), board.givens);
+  assert.deepStrictEqual(S.solvedCells(board), board.solution);
+  assert.strictEqual(S.isSolved(board, S.solvedCells(board)), true);
+});
+
+test('la misma semilla da el mismo tablero', () => {
+  const a = S.generate(R.mulberry32(55), 6);
+  const b = S.generate(R.mulberry32(55), 6);
+  assert.deepStrictEqual(a.givens, b.givens);
+  assert.deepStrictEqual(a.solution, b.solution);
+});
+
+test('generate rechaza tamanos que no sean 6', () => {
+  for (const malo of [4, 9, '6', undefined, null]) {
+    assert.throws(() => S.generate(R.mulberry32(1), malo), /tamano/i);
+  }
+});

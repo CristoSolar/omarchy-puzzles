@@ -13,7 +13,11 @@ least one.
 
 No network. No dependencies. No telemetry.
 
+![Omarchy Puzzles](docs/preview.png)
+
 ## The games
+
+![The menu](docs/menu.png)
 
 ### Queens ♛
 
@@ -26,6 +30,8 @@ leaves the ones you made yourself.
 
 Board size is configurable: 7, 8 or 9.
 
+![Queens](docs/queens.png)
+
 ### Tango ☀
 
 A 6×6 grid filled with suns and moons. Half of each per row and per column,
@@ -33,6 +39,8 @@ never three of the same in a row, and the signs between neighbouring cells
 rule: `=` forces them equal, `×` forces them different.
 
 The cells that come filled in can't be edited.
+
+![Tango](docs/tango.png)
 
 ### Mini Sudoku #
 
@@ -42,6 +50,8 @@ box.
 Pick a cell, then press a digit on the pad below. Pressing the same digit again
 clears it.
 
+![Mini Sudoku](docs/sudoku.png)
+
 ### Zip ↯
 
 One path visiting **every** cell exactly once, touching the numbers in
@@ -49,6 +59,8 @@ ascending order. Drag to draw: the path extends to the neighbouring cell your
 pointer touches, and going back over the previous one shortens it.
 
 Starting from the number 1 resets the path.
+
+![Zip](docs/zip.png)
 
 ## Install
 
@@ -91,6 +103,8 @@ folder to remove them too. The plugin writes nothing anywhere else.
 
 Shows a crown with your global streak, dimmed while any game is still unsolved
 today and lit once all four are done. The tooltip says how many are left.
+
+![The bar widget](docs/bar.png)
 
 ## Your data
 

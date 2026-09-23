@@ -10,7 +10,7 @@ var VACIO = 0;
 var meta = {
   id: 'zip',
   name: 'Zip',
-  icon: '⚡',
+  icon: '\u21af',
   sizes: [6],
   defaultSize: 6,
   blurb: 'Un camino que pasa por todas las celdas tocando los numeros en orden.'

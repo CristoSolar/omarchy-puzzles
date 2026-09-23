@@ -99,3 +99,66 @@ test('emptyCells deja el camino vacio', () => {
   assert.strictEqual(cells.length, 36);
   assert.ok(cells.every((v) => v === 0));
 });
+
+const R = require('../lib/rng.js');
+
+test('randomHamiltonian recorre todas las celdas con pasos vecinos', () => {
+  for (let s = 0; s < 10; s++) {
+    const camino = Z.randomHamiltonian(R.mulberry32(s), N);
+    assert.strictEqual(camino.length, N * N, `semilla ${s} incompleta`);
+    assert.strictEqual(new Set(camino).size, N * N, 'sin repetir celdas');
+    for (let i = 1; i < camino.length; i++) {
+      assert.ok(Z.areAdjacent(camino[i - 1], camino[i], N),
+        `paso no vecino en la semilla ${s}`);
+    }
+  }
+});
+
+// Review Focus 5: el camino arranca en el 1 y termina en el mas alto.
+test('el 1 esta en la primera celda del camino y el ultimo numero en la ultima', () => {
+  for (let s = 0; s < 6; s++) {
+    const board = Z.generate(R.mulberry32(s), 6);
+    const numeros = board.checkpoints;
+    const primera = board.solution[0];
+    const ultima = board.solution[board.solution.length - 1];
+
+    assert.strictEqual(numeros[primera], 1, `semilla ${s}: el 1 no esta al inicio`);
+    const mayor = Math.max.apply(null, numeros);
+    assert.strictEqual(numeros[ultima], mayor, `semilla ${s}: el ultimo numero no esta al final`);
+  }
+});
+
+test('generate produce tableros de solucion unica', () => {
+  for (let s = 0; s < 6; s++) {
+    const board = Z.generate(R.mulberry32(s), 6);
+    assert.strictEqual(Z.countPaths(board, 3), 1, `semilla ${s} no es unica`);
+    assert.strictEqual(Z.isSolved(board, Z.solvedCells(board)), true);
+  }
+});
+
+test('los numeros son consecutivos desde 1', () => {
+  const board = Z.generate(R.mulberry32(2), 6);
+  const usados = board.checkpoints.filter((v) => v > 0).sort((a, b) => a - b);
+  assert.ok(usados.length >= 2, 'al menos el 1 y el final');
+  usados.forEach((v, k) => assert.strictEqual(v, k + 1, 'numeracion con huecos'));
+});
+
+test('solvedCells numera el camino completo', () => {
+  const board = Z.generate(R.mulberry32(4), 6);
+  const cells = Z.solvedCells(board);
+  assert.strictEqual(cells.filter((v) => v > 0).length, 36);
+  assert.deepStrictEqual(Z.pathOf(cells), board.solution);
+});
+
+test('la misma semilla da el mismo tablero', () => {
+  const a = Z.generate(R.mulberry32(9), 6);
+  const b = Z.generate(R.mulberry32(9), 6);
+  assert.deepStrictEqual(a.checkpoints, b.checkpoints);
+  assert.deepStrictEqual(a.solution, b.solution);
+});
+
+test('generate rechaza tamanos que no sean 6', () => {
+  for (const malo of [4, 8, '6', undefined, null]) {
+    assert.throws(() => Z.generate(R.mulberry32(1), malo), /tamano/i);
+  }
+});

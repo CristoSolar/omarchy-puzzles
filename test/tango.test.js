@@ -105,3 +105,89 @@ test('isSolved exige la grilla llena y sin conflictos', () => {
   incompleta[35] = VACIO;
   assert.strictEqual(T.isSolved(b, incompleta), false, 'falta una celda');
 });
+
+const R = require('../lib/rng.js');
+
+test('randomSolution da una grilla legal y completa', () => {
+  for (let s = 0; s < 20; s++) {
+    const cells = T.randomSolution(R.mulberry32(s), N);
+    const b = tablero({ solution: cells.slice() });
+    assert.strictEqual(cells.filter((v) => v === VACIO).length, 0, 'sin vacias');
+    assert.deepStrictEqual(T.conflicts(b, cells), [], `semilla ${s} ilegal`);
+  }
+});
+
+test('generate produce tableros de solucion unica', () => {
+  for (let s = 0; s < 8; s++) {
+    const board = T.generate(R.mulberry32(s), 6);
+    assert.strictEqual(board.n, 6);
+    assert.strictEqual(T.countSolutions(board, 3), 1, `semilla ${s} no es unica`);
+    assert.strictEqual(T.isSolved(board, board.solution), true, 'la solucion debe resolver');
+  }
+});
+
+// Review Focus 1: el complemento de una solucion tambien lo es.
+test('siempre queda al menos una celda dada, o el tablero tendria dos soluciones', () => {
+  for (let s = 0; s < 8; s++) {
+    const board = T.generate(R.mulberry32(s), 6);
+    const dadas = board.givens.filter((v) => v !== VACIO).length;
+    assert.ok(dadas >= 1, `semilla ${s} sin dadas`);
+  }
+});
+
+test('el complemento de una solucion cumple las reglas, por eso hacen falta dadas', () => {
+  const board = T.generate(R.mulberry32(1), 6);
+  const complemento = board.solution.map((v) => (v === SOL ? LUNA : SOL));
+  const sinDadas = { n: 6, givens: new Array(36).fill(VACIO), constraints: board.constraints,
+                     solution: board.solution };
+  assert.deepStrictEqual(T.conflicts(sinDadas, complemento), [],
+    'el complemento es legal, asi que sin dadas habria dos soluciones');
+});
+
+test('las dadas coinciden con la solucion', () => {
+  const board = T.generate(R.mulberry32(5), 6);
+  for (let i = 0; i < 36; i++) {
+    if (board.givens[i] !== VACIO) {
+      assert.strictEqual(board.givens[i], board.solution[i], `dada ${i} no coincide`);
+    }
+  }
+});
+
+test('las restricciones unen celdas vecinas y coinciden con la solucion', () => {
+  const board = T.generate(R.mulberry32(2), 6);
+  for (const c of board.constraints) {
+    const dif = Math.abs(c.a - c.b);
+    const vecinas = dif === 6 || (dif === 1 && T.rowOf(c.a, 6) === T.rowOf(c.b, 6));
+    assert.ok(vecinas, `restriccion entre celdas no vecinas: ${c.a}-${c.b}`);
+    assert.strictEqual(board.solution[c.a] === board.solution[c.b], c.eq, 'restriccion mentirosa');
+  }
+});
+
+// Review Focus 5: emptyCells de Tango no esta vacio.
+test('emptyCells devuelve las dadas, no una grilla vacia', () => {
+  const board = T.generate(R.mulberry32(3), 6);
+  const cells = T.emptyCells(board);
+  assert.deepStrictEqual(cells, board.givens, 'el estado inicial son las dadas');
+  assert.ok(cells.some((v) => v !== VACIO), 'y tiene al menos una');
+  assert.strictEqual(cells.length, 36);
+});
+
+test('solvedCells devuelve la solucion completa', () => {
+  const board = T.generate(R.mulberry32(4), 6);
+  assert.deepStrictEqual(T.solvedCells(board), board.solution);
+  assert.strictEqual(T.isSolved(board, T.solvedCells(board)), true);
+});
+
+test('la misma semilla da el mismo tablero', () => {
+  const a = T.generate(R.mulberry32(77), 6);
+  const b = T.generate(R.mulberry32(77), 6);
+  assert.deepStrictEqual(a.givens, b.givens);
+  assert.deepStrictEqual(a.solution, b.solution);
+  assert.deepStrictEqual(a.constraints, b.constraints);
+});
+
+test('generate rechaza tamanos que no sean 6', () => {
+  for (const malo of [4, 8, '6', undefined, null]) {
+    assert.throws(() => T.generate(R.mulberry32(1), malo), /tamano/i);
+  }
+});

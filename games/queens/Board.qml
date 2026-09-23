@@ -1,12 +1,13 @@
 import QtQuick
+import "logic.js" as Logic
 
-// Tablero de Queens. Solo sabe de su juego: la carcasa le pasa la logica y el
-// tablero, y el avisa cuando cambian las celdas o cuando el puzzle quedo
-// resuelto. No toca disco ni conoce la racha.
+// Tablero de Queens. Solo sabe de su juego: importa su propia logica -- pasarla
+// por propiedad no funciona, el namespace de un modulo JS de QML no sobrevive
+// la asignacion entre componentes -- y avisa cuando cambian las celdas o cuando
+// el puzzle quedo resuelto. No toca disco ni conoce la racha.
 Item {
   id: root
 
-  property var logic: null
   property var board: null
   property var cells: []
   property bool locked: false
@@ -41,7 +42,7 @@ Item {
       if (next[root.manualMarks[i]] === 0) next[root.manualMarks[i]] = 1
     }
 
-    var auto = root.logic.blockedCells(root.board, next)
+    var auto = Logic.blockedCells(root.board, next)
     var autos = []
     for (i = 0; i < auto.length; i++) {
       if (next[auto[i]] === 0) {
@@ -51,13 +52,13 @@ Item {
     }
     root.autoMarks = autos
     root.cells = next
-    root.badCells = root.logic.conflicts(root.board, next)
+    root.badCells = Logic.conflicts(root.board, next)
   }
 
   // Al recibir celdas de la carcasa (partida restaurada o juego nuevo), las X
   // guardadas son las propias; las deducidas se recalculan.
   function adopt(incoming) {
-    if (!root.board || !root.logic) return
+    if (!root.board) return
     var marcas = []
     for (var i = 0; i < incoming.length; i++) {
       if (incoming[i] === 1) marcas.push(i)
@@ -107,7 +108,7 @@ Item {
 
     recompute(next)
     root.cellsEdited(root.cells)
-    if (root.logic.isSolved(root.board, root.cells)) root.solvedNow()
+    if (Logic.isSolved(root.board, root.cells)) root.solvedNow()
   }
 
   Grid {

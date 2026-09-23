@@ -78,6 +78,7 @@ Panel {
       root.cells = vacias
       root.elapsedMs = State.gameState(root.store, root.currentGame).lastElapsedMs
       root.won = true
+      adoptInBoard()
       return
     }
 
@@ -88,6 +89,23 @@ Panel {
       ? State.gameState(root.store, root.currentGame).inProgress.elapsedMs : 0
     root.won = false
     clock.start()
+    adoptInBoard()
+  }
+
+  // El Loader puede emitir onLoaded antes de que newGame() genere el tablero,
+  // en cuyo caso adoptaria celdas vacias. Adoptar tambien aca cubre el orden
+  // inverso, y adoptar dos veces es idempotente.
+  // Agnostico del juego: las celdas vacias las declara su propia logica.
+  function clearBoard() {
+    if (!root.board || root.won) return
+    root.cells = root.logic.emptyCells(root.board)
+    root.elapsedMs = 0
+    adoptInBoard()
+    clock.start()
+  }
+
+  function adoptInBoard() {
+    if (vista.item && vista.item.adopt) vista.item.adopt(root.cells)
   }
 
   // Volver al menu guarda igual que cerrar el panel: la partida a medias no se
@@ -210,6 +228,12 @@ Panel {
             font.pixelSize: 15
             color: root.won ? "#6abf69" : root.barForeground
           }
+
+          Button {
+            text: "Limpiar"
+            enabled: !root.won
+            onClicked: root.clearBoard()
+          }
         }
 
         Text {
@@ -234,7 +258,6 @@ Panel {
               item.foreground = root.barForeground
               item.chosen.connect(root.openGame)
             } else {
-              item.logic = root.logic
               item.board = Qt.binding(function () { return root.board })
               item.locked = Qt.binding(function () { return root.won })
               item.adopt(root.cells)

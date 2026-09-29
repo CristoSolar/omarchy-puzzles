@@ -5,6 +5,7 @@ const queens = require('../games/queens/logic.js');
 const tango = require('../games/tango/logic.js');
 const sudoku = require('../games/sudoku/logic.js');
 const zip = require('../games/zip/logic.js');
+const patches = require('../games/patches/logic.js');
 
 test('el registro conoce Queens y coincide con su meta', () => {
   const entrada = Reg.byId('queens');
@@ -54,6 +55,14 @@ test('el registro conoce Zip y coincide con su meta', () => {
   assert.strictEqual(entrada.blurb, zip.meta.blurb);
 });
 
-test('los cuatro juegos estan registrados', () => {
-  assert.deepStrictEqual(Reg.ids(), ['queens', 'tango', 'sudoku', 'zip']);
+test('el registro conoce Patches y coincide con su meta', () => {
+  const entrada = Reg.byId('patches');
+  assert.ok(entrada, 'patches debe estar registrado');
+  assert.strictEqual(entrada.name, patches.meta.name);
+  assert.strictEqual(entrada.icon, patches.meta.icon);
+  assert.strictEqual(entrada.blurb, patches.meta.blurb);
+});
+
+test('los juegos estan registrados en orden', () => {
+  assert.deepStrictEqual(Reg.ids(), ['queens', 'tango', 'sudoku', 'zip', 'patches']);
 });

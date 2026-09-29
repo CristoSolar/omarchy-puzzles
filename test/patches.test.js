@@ -115,3 +115,13 @@ test('emptyCells y maxCellValue', () => {
   assert.strictEqual(P.emptyCells(board).length, 36);
   assert.strictEqual(P.maxCellValue(board), board.clues.length);
 });
+
+// La prueba anterior es circular (el generador itera hasta countSolutions === 1):
+// aqui se fija el contador con tableros armados a mano.
+test('countSolutions cuenta soluciones en tableros armados a mano', () => {
+  const ambiguo = { n: 2, clues: [{ cell: 0, area: 2, shape: 'any' }, { cell: 3, area: 2, shape: 'any' }], solution: [] };
+  assert.strictEqual(P.countSolutions(ambiguo, 5), 2);
+  assert.strictEqual(P.countSolutions(ambiguo, 1), 1, 'limit corta la cuenta');
+  const imposible = { n: 2, clues: [{ cell: 0, area: 3, shape: 'any' }], solution: [] };
+  assert.strictEqual(P.countSolutions(imposible, 5), 0);
+});

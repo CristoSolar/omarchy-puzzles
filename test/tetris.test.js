@@ -97,6 +97,19 @@ test('limpiar una y varias filas', () => {
   assert.ok(run.field.every((v) => v === 0), 'el campo queda vacio');
 });
 
+// Lo que queda sobre las filas limpiadas baja exactamente esas filas.
+test('limpiar filas baja el bloque sobrante', () => {
+  const b = tablero([O, O, O, O, O, O]);
+  let run = T.newRun(b);
+  // Dos O apiladas en columnas 8-9 (filas 16-19), luego cuatro O completan las
+  // columnas 0-7 de las filas 18-19.
+  for (const dx of [4, 4, -4, -2, 0, 2]) run = T.hardDrop(b, correr(b, run, dx));
+  assert.strictEqual(run.lines, 2);
+  const llenos = [];
+  run.field.forEach((v, i) => { if (v) llenos.push(i); });
+  assert.deepStrictEqual(llenos, [188, 189, 198, 199], 'la O sobrante baja dos filas');
+});
+
 test('rotar pegado a la pared corre la pieza', () => {
   const b = tablero([I]);
   let run = T.rotate(b, T.newRun(b));           // I vertical

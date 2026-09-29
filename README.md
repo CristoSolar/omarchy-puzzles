@@ -72,6 +72,8 @@ Drag from corner to corner to draw a rectangle; it goes to the one clue inside
 it. Drawing again for the same clue moves it, and anything it covers is
 erased. Click a rectangle to remove it.
 
+![Patches](docs/patches.png)
+
 ### Minesweeper ✹
 
 9×9 with 10 mines. The board opens with an area already revealed, and from
@@ -80,11 +82,15 @@ there it can be solved by logic alone — no guessing.
 Left click reveals, right click flags. Hitting a mine shows them all for a
 second and resets the board; the clock keeps running.
 
+![Minesweeper](docs/minas.png)
+
 ### Tetris ▤
 
 Clear 20 lines with the day's pieces. ← → move, ↑ rotates, ↓ soft drops,
 space hard drops. Topping out restarts the same sequence; the clock keeps
 running. A run isn't saved if you close the panel.
+
+![Tetris](docs/tetris.png)
 
 ## Install
 

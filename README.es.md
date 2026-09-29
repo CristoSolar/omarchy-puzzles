@@ -72,6 +72,8 @@ Arrastrás de esquina a esquina para dibujar un rectángulo; va a la única pist
 que queda adentro. Dibujar de nuevo para la misma pista lo mueve, y lo que pise
 se borra. Un clic sobre un rectángulo lo saca.
 
+![Patches](docs/patches.png)
+
 ### Buscaminas ✹
 
 9×9 con 10 minas. El tablero arranca con una zona ya abierta y, desde ahí, se
@@ -80,11 +82,15 @@ resuelve con pura lógica, sin adivinar.
 Clic izquierdo destapa, clic derecho pone bandera. Pisar una mina las muestra
 todas un segundo y vuelve al tablero inicial; el reloj sigue corriendo.
 
+![Buscaminas](docs/minas.png)
+
 ### Tetris ▤
 
 Limpiá 20 líneas con las piezas del día. ← → mueven, ↑ rota, ↓ baja, espacio
 suelta. Perder reinicia la misma secuencia; el reloj sigue corriendo. Si cerrás
 el panel, la partida no se guarda.
+
+![Tetris](docs/tetris.png)
 
 ## Instalación
 

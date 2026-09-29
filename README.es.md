@@ -2,13 +2,13 @@
 
 *[Read this in English](README.md)*
 
-Cuatro puzzles diarios en la barra de [Omarchy](https://omarchy.org), al estilo
-de los de LinkedIn: **Queens**, **Tango**, **Mini Sudoku** y **Zip**. Un clic
+Siete puzzles diarios en la barra de [Omarchy](https://omarchy.org), al estilo
+de los de LinkedIn: **Queens**, **Tango**, **Mini Sudoku**, **Zip**, **Patches**, **Buscaminas** y **Tetris**. Un clic
 abre el menú con los juegos y su estado del día; elegís uno y lo jugás ahí
 mismo.
 
 Cada tablero se genera en tu equipo a partir de la fecha del día, con solución
-única garantizada por un solver. Una racha global cuenta los días en que
+única garantizada por un solver (Buscaminas: resoluble sin adivinar; Tetris: la misma secuencia de piezas para todos ese día). Una racha global cuenta los días en que
 resolviste al menos uno.
 
 Sin red. Sin dependencias. Sin telemetría.
@@ -62,6 +62,30 @@ Empezar desde el número 1 reinicia el camino.
 
 ![Zip](docs/zip.png)
 
+### Patches ▦
+
+Cubrí la grilla de 6×6 con rectángulos que no se pisen. Cada rectángulo tiene
+exactamente una pista: su área es el número de la pista y, si la pista muestra
+una forma, la respeta — □ cuadrado, ▭ más ancho que alto, ▯ más alto que ancho.
+
+Arrastrás de esquina a esquina para dibujar un rectángulo; va a la única pista
+que queda adentro. Dibujar de nuevo para la misma pista lo mueve, y lo que pise
+se borra. Un clic sobre un rectángulo lo saca.
+
+### Buscaminas ✹
+
+9×9 con 10 minas. El tablero arranca con una zona ya abierta y, desde ahí, se
+resuelve con pura lógica, sin adivinar.
+
+Clic izquierdo destapa, clic derecho pone bandera. Pisar una mina las muestra
+todas un segundo y vuelve al tablero inicial; el reloj sigue corriendo.
+
+### Tetris ▤
+
+Limpiá 20 líneas con las piezas del día. ← → mueven, ↑ rota, ↓ baja, espacio
+suelta. Perder reinicia la misma secuencia; el reloj sigue corriendo. Si cerrás
+el panel, la partida no se guarda.
+
 ## Instalación
 
 ```bash
@@ -103,7 +127,7 @@ otro lado.
 ## El widget de la barra
 
 Muestra una corona con tu racha global, atenuada mientras quede algún juego sin
-resolver hoy y encendida cuando los cuatro están hechos. El tooltip dice cuántos
+resolver hoy y encendida cuando los siete están hechos. El tooltip dice cuántos
 faltan.
 
 ![El widget de la barra](docs/bar.png)
@@ -128,7 +152,7 @@ Todo vive en `~/.local/state/omarchy-puzzles/state.json`:
 }
 ```
 
-La racha sube la primera vez que resolvés **cualquiera** de los cuatro en un
+La racha sube la primera vez que resolvés **cualquiera** de los siete en un
 día, y se reinicia tras un día sin jugar. Cada juego guarda su mejor tiempo por
 tamaño de tablero y su partida a medias, que se guarda al volver al menú o
 cerrar el panel y se descarta al cambiar el día.

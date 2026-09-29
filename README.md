@@ -2,13 +2,13 @@
 
 *[Leer en español](README.es.md)*
 
-Four daily puzzles in your [Omarchy](https://omarchy.org) bar, in the spirit of
-the LinkedIn games: **Queens**, **Tango**, **Mini Sudoku** and **Zip**. One click
+Seven daily puzzles in your [Omarchy](https://omarchy.org) bar, in the spirit of
+the LinkedIn games: **Queens**, **Tango**, **Mini Sudoku**, **Zip**, **Patches**, **Minesweeper** and **Tetris**. One click
 opens a menu with the games and today's status; pick one and play it right
 there.
 
 Every board is generated on your machine from the day's date, with a unique
-solution guaranteed by a solver. A global streak counts the days you solved at
+solution guaranteed by a solver (Minesweeper: solvable without guessing; Tetris: the same piece sequence for everyone that day). A global streak counts the days you solved at
 least one.
 
 No network. No dependencies. No telemetry.
@@ -62,6 +62,30 @@ Starting from the number 1 resets the path.
 
 ![Zip](docs/zip.png)
 
+### Patches ▦
+
+Cover the 6×6 grid with rectangles that don't overlap. Each rectangle holds
+exactly one clue: its area is the clue's number and, if the clue shows a shape,
+it follows it — □ square, ▭ wider than tall, ▯ taller than wide.
+
+Drag from corner to corner to draw a rectangle; it goes to the one clue inside
+it. Drawing again for the same clue moves it, and anything it covers is
+erased. Click a rectangle to remove it.
+
+### Minesweeper ✹
+
+9×9 with 10 mines. The board opens with an area already revealed, and from
+there it can be solved by logic alone — no guessing.
+
+Left click reveals, right click flags. Hitting a mine shows them all for a
+second and resets the board; the clock keeps running.
+
+### Tetris ▤
+
+Clear 20 lines with the day's pieces. ← → move, ↑ rotates, ↓ soft drops,
+space hard drops. Topping out restarts the same sequence; the clock keeps
+running. A run isn't saved if you close the panel.
+
 ## Install
 
 ```bash
@@ -102,7 +126,7 @@ folder to remove them too. The plugin writes nothing anywhere else.
 ## The bar widget
 
 Shows a crown with your global streak, dimmed while any game is still unsolved
-today and lit once all four are done. The tooltip says how many are left.
+today and lit once all seven are done. The tooltip says how many are left.
 
 ![The bar widget](docs/bar.png)
 
@@ -126,7 +150,7 @@ Everything lives in `~/.local/state/omarchy-puzzles/state.json`:
 }
 ```
 
-The streak goes up the first time you solve **any** of the four on a given day,
+The streak goes up the first time you solve **any** of the seven on a given day,
 and resets after a day without playing. Each game keeps its own best time per
 board size, and its half-finished game, which is saved when you go back to the
 menu or close the panel and discarded when the day rolls over.
@@ -170,12 +194,15 @@ maxCellValue(board) -> number        // the highest a cell can hold
 
 `board` and `cells` are opaque to the shell: only that game's `logic.js` and its
 `Board.qml` interpret them. Input models differ on purpose — Queens cycles a
-cell, Tango toggles, Sudoku takes a digit, Zip is drawn by dragging — so each
+cell, Tango toggles, Sudoku takes a digit, Zip is drawn by dragging, Patches is drawn corner to corner, Minesweeper uses both buttons, Tetris takes the keyboard — so each
 game ships its own board.
 
 No file in `lib/` or `games/*/logic.js` imports another: QML's JS engine only
 accepts `.import`, which Node can't parse, so anything shared is passed as an
 argument.
+
+A board that wants the keyboard defines `keyMove(dx, dy)` and `keyAction()`;
+`Panel.qml` forwards arrows (and hjkl) and space/Enter to them when present.
 
 ### The generators
 
@@ -196,9 +223,18 @@ early cutoff:
   numbers while the path stays unique. Counting Hamiltonian paths explodes
   without pruning, so the counter drops any branch that splits the unvisited
   cells into islands, and carries a node budget as a backstop.
+- **Patches** partitions the grid into random rectangles of area 2–8, puts a
+  clue in each and reveals half the shapes; while the solver finds a second
+  solution it reveals hidden shapes one at a time, and retries if that's not
+  enough.
+- **Minesweeper** places mines at random, starts from a cell with no mines
+  around it, and keeps the board only if a no-guessing solver (single-number
+  and subset rules) clears it.
+- **Tetris** shuffles 86 bags of the seven pieces; the board just plays that
+  queue.
 
 Worst case measured on a 6th-gen laptop: 196 ms (Queens 9×9), 3 ms (Tango),
-3 ms (Sudoku), 149 ms (Zip).
+3 ms (Sudoku), 149 ms (Zip), 3 ms (Patches), 1 ms (Minesweeper), 1 ms (Tetris).
 
 ## License
 

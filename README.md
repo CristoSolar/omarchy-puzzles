@@ -65,8 +65,9 @@ Starting from the number 1 resets the path.
 ### Patches ▦
 
 Cover the 6×6 grid with rectangles that don't overlap. Each rectangle holds
-exactly one clue: its area is the clue's number and, if the clue shows a shape,
-it follows it — □ square, ▭ wider than tall, ▯ taller than wide.
+exactly one clue: its area is the clue's number, and its shape is the shape of
+the clue's tile — square (straight corners and an outline), wider than tall,
+or taller than wide. A plain rounded tile means any shape goes.
 
 Drag from corner to corner to draw a rectangle; it goes to the one clue inside
 it. Drawing again for the same clue moves it, and anything it covers is

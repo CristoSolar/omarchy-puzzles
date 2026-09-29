@@ -65,8 +65,9 @@ Empezar desde el número 1 reinicia el camino.
 ### Patches ▦
 
 Cubrí la grilla de 6×6 con rectángulos que no se pisen. Cada rectángulo tiene
-exactamente una pista: su área es el número de la pista y, si la pista muestra
-una forma, la respeta — □ cuadrado, ▭ más ancho que alto, ▯ más alto que ancho.
+exactamente una pista: su área es el número de la pista, y su forma es la de
+la ficha de la pista — cuadrada (esquinas rectas y borde), más ancha que alta
+o más alta que ancha. La ficha redondeada común admite cualquier forma.
 
 Arrastrás de esquina a esquina para dibujar un rectángulo; va a la única pista
 que queda adentro. Dibujar de nuevo para la misma pista lo mueve, y lo que pise

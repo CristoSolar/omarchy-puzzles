@@ -134,7 +134,10 @@ Item {
       }
     }
 
-    // Pistas: numero y un glifo de la forma pedida.
+    // Pistas: la ficha misma tiene la forma pedida -- ancha, alta o cuadrada,
+    // y la ficha redondeada comun si la forma es libre -- con el area adentro. Un glifo aparte no
+    // sirve: los caracteres de forma no estan en todas las fuentes, y dibujado
+    // chico junto al numero no se distinguia.
     Repeater {
       model: root.board ? root.board.clues : []
 
@@ -142,28 +145,30 @@ Item {
         id: pista
         required property var modelData
         required property int index
+        readonly property string forma: pista.modelData.shape
+        readonly property int largo: root.cellPixels - 8
+        readonly property int corto: Math.round((root.cellPixels - 8) * 0.6)
 
-        x: (pista.modelData.cell % root.drawnSize) * root.cellPixels + 5
-        y: Math.floor(pista.modelData.cell / root.drawnSize) * root.cellPixels + 5
-        width: root.cellPixels - 10
-        height: root.cellPixels - 10
-        radius: 6
+        // Libre: la ficha redondeada de siempre. Cuadrado: un poco mas chica,
+        // de esquinas rectas y con borde, para que no se confunda con libre.
+        readonly property int lado: pista.forma === "square" ? root.cellPixels - 14 : root.cellPixels - 10
+
+        width: pista.forma === "wide" ? pista.largo
+          : (pista.forma === "tall" ? pista.corto : pista.lado)
+        height: pista.forma === "tall" ? pista.largo
+          : (pista.forma === "wide" ? pista.corto : pista.lado)
+        x: (pista.modelData.cell % root.drawnSize + 0.5) * root.cellPixels - width / 2
+        y: (Math.floor(pista.modelData.cell / root.drawnSize) + 0.5) * root.cellPixels - height / 2
+        radius: pista.forma === "any" ? 8 : (pista.forma === "square" ? 1 : 5)
         color: root.tint(pista.index + 1, 0.95)
+        border.width: pista.forma === "square" ? 2 : 0
+        border.color: Color.background
 
         Text {
           anchors.centerIn: parent
           text: pista.modelData.area
           font.pixelSize: 16
           font.bold: true
-          color: Color.background
-        }
-
-        Text {
-          anchors.right: parent.right
-          anchors.bottom: parent.bottom
-          anchors.margins: 2
-          text: ({ square: "□", wide: "▭", tall: "▯", any: "" })[pista.modelData.shape]
-          font.pixelSize: 10
           color: Color.background
         }
       }

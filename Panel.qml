@@ -292,6 +292,15 @@ Panel {
       anchors.fill: parent
       onCloseRequested: root.currentGame === "" ? root.close() : root.backToMenu()
 
+      // Los tableros de teclado (Tetris) reciben flechas y espacio. Los demas no
+      // definen estas funciones y no se enteran.
+      onMoveRequested: function (dx, dy) {
+        if (root.currentGame !== "" && vista.item && vista.item.keyMove) vista.item.keyMove(dx, dy)
+      }
+      onActivateRequested: {
+        if (root.currentGame !== "" && vista.item && vista.item.keyAction) vista.item.keyAction()
+      }
+
       Column {
         id: contenido
         anchors.horizontalCenter: parent.horizontalCenter

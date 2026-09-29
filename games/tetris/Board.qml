@@ -55,12 +55,17 @@ Item {
 
   function advance(next) {
     if (root.locked || !root.board || !root.run) return
+    // La meta va primero: llegar a ella en el mismo bloqueo que tapa la salida gana.
+    if (next.lines >= root.board.goal) {
+      root.run = next
+      root.solvedNow()
+      return
+    }
     if (next.over) {
       root.run = Logic.newRun(root.board)
       return
     }
     root.run = next
-    if (root.run.lines >= root.board.goal) root.solvedNow()
   }
 
   function keyMove(dx, dy) {
@@ -134,7 +139,8 @@ Item {
       }
 
       Text {
-        text: (root.run ? Math.min(root.run.lines, root.board.goal) : 0) + " / "
+        text: (root.locked && root.board ? root.board.goal
+               : (root.run ? Math.min(root.run.lines, root.board.goal) : 0)) + " / "
               + (root.board ? root.board.goal : 0)
         font.pixelSize: 20
         font.bold: true

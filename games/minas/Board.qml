@@ -29,11 +29,12 @@ Item {
   implicitHeight: sidePixels
 
   // Colores clasicos por numero, atenuados hacia el tema.
-  readonly property var numberColors: ["", "#4a90d9", "#3fa34d", "#d9534f", "#6f42c1",
+  readonly property var numberColors: ["transparent", "#4a90d9", "#3fa34d", "#d9534f", "#6f42c1",
                                        "#a0522d", "#17a2b8", "#555555", "#888888"]
 
   function adopt(incoming) {
     if (!root.board) return
+    reinicio.stop()
     root.cells = incoming.slice()
     root.badCells = []
     root.boom = -1
@@ -51,6 +52,8 @@ Item {
     var next = Logic.reveal(root.board, root.cells, index)
     if (next === null) {
       root.boom = index
+      // La carcasa ya guarda el tablero inicial; aqui solo queda la muestra.
+      root.cellsEdited(Logic.emptyCells(root.board))
       reinicio.restart()
       return
     }

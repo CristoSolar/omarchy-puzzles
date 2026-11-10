@@ -3,7 +3,7 @@
 *[Read this in English](README.md)*
 
 Siete puzzles diarios en la barra de [Omarchy](https://omarchy.org), al estilo
-de los de LinkedIn: **Queens**, **Tango**, **Mini Sudoku**, **Zip**, **Patches**, **Buscaminas** y **Tetris**. Un clic
+de los de LinkedIn: **Queens**, **Tango**, **Mini Sudoku**, **Zip**, **Patches**, **Buscaminas**, **Tetris** y **2048**. Un clic
 abre el menú con los juegos y su estado del día; elegís uno y lo jugás ahí
 mismo.
 
@@ -58,16 +58,18 @@ Un camino que pasa por **todas** las celdas exactamente una vez, tocando los
 números en orden ascendente. Se juega arrastrando: el camino se extiende a la
 celda vecina que toca el puntero, y volver sobre la anteúltima lo acorta.
 
-Empezar desde el número 1 reinicia el camino.
+Empezar desde el número 1 reinicia el camino. Algunos días el tablero trae
+murallas: barras sobre el borde entre dos celdas que el camino no puede
+cruzar. Esos días vienen con menos números.
 
 ![Zip](docs/zip.png)
 
 ### Patches ▦
 
 Cubrí la grilla de 6×6 con rectángulos que no se pisen. Cada rectángulo tiene
-exactamente una pista: su área es el número de la pista, y su forma es la de
-la ficha de la pista — cuadrada (esquinas rectas y borde), más ancha que alta
-o más alta que ancha. La ficha redondeada común admite cualquier forma.
+exactamente una pista: su área es el número de la pista, y su forma es la que
+dibuja la ficha — cuadrado, rectángulo ancho o rectángulo alto. Una ficha en
+cruz (ancho y alto superpuestos) admite cualquier forma.
 
 Arrastrás de esquina a esquina para dibujar un rectángulo; va a la única pista
 que queda adentro. Dibujar de nuevo para la misma pista lo mueve, y lo que pise
@@ -92,6 +94,13 @@ suelta. Perder reinicia la misma secuencia; el reloj sigue corriendo. Si cerrás
 el panel, la partida no se guarda.
 
 ![Tetris](docs/tetris.png)
+
+### 2048 ▣
+
+Las flechas deslizan todas las fichas; dos iguales que chocan se juntan en una.
+La meta del día es llegar a **512**. Las fichas nuevas salen de la semilla del
+día: misma jugada, misma ficha para todos. Quedarte sin jugadas reinicia el
+mismo tablero; si cerrás el panel, la partida no se guarda.
 
 ## Instalación
 
@@ -134,7 +143,7 @@ otro lado.
 ## El widget de la barra
 
 Muestra una corona con tu racha global, atenuada mientras quede algún juego sin
-resolver hoy y encendida cuando los siete están hechos. El tooltip dice cuántos
+resolver hoy y encendida cuando los ocho están hechos. El tooltip dice cuántos
 faltan.
 
 ![El widget de la barra](docs/bar.png)
@@ -159,10 +168,14 @@ Todo vive en `~/.local/state/omarchy-puzzles/state.json`:
 }
 ```
 
-La racha sube la primera vez que resolvés **cualquiera** de los siete en un
+La racha sube la primera vez que resolvés **cualquiera** de los ocho en un
 día, y se reinicia tras un día sin jugar. Cada juego guarda su mejor tiempo por
 tamaño de tablero y su partida a medias, que se guarda al volver al menú o
 cerrar el panel y se descarta al cambiar el día.
+
+**Nueva** abre una partida libre con un tablero al azar: se juega igual, pero
+no se guarda ni suma a la racha. Solo el puzzle del día cuenta; volver al menú
+y elegir el juego te devuelve a él.
 
 Borrar ese archivo te deja de cero. Uno corrupto también: el plugin vuelve a los
 valores por defecto en vez de romperse.

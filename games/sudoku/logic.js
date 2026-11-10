@@ -186,6 +186,30 @@ function generate(rand, size) {
   return board;
 }
 
+// Filas, columnas y cajas llenas y correctas, cada una como lista de indices
+// en orden de lectura. Se compara con la solucion, que es unica: un grupo sin
+// repetidos pero distinto de ella igual llevaria a un callejon.
+function completedGroups(board, cells) {
+  var n = board.n;
+  var grupos = [];
+  var g, i;
+  for (g = 0; g < n; g++) grupos.push([], [], []);
+  for (i = 0; i < n * n; i++) {
+    grupos[rowOf(i, n) * 3].push(i);
+    grupos[colOf(i, n) * 3 + 1].push(i);
+    grupos[boxOf(i, n) * 3 + 2].push(i);
+  }
+  var out = [];
+  for (g = 0; g < grupos.length; g++) {
+    var bien = true;
+    for (var k = 0; k < grupos[g].length && bien; k++) {
+      bien = cells[grupos[g][k]] === board.solution[grupos[g][k]];
+    }
+    if (bien) out.push(grupos[g]);
+  }
+  return out;
+}
+
 function emptyCells(board) {
   return board.givens.slice();
 }
@@ -207,6 +231,7 @@ if (typeof module !== 'undefined') {
     rowOf: rowOf, colOf: colOf, boxOf: boxOf,
     conflicts: conflicts,
     isSolved: isSolved,
+    completedGroups: completedGroups,
     generate: generate,
     emptyCells: emptyCells,
     maxCellValue: maxCellValue,

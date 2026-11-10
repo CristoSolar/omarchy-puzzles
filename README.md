@@ -3,7 +3,7 @@
 *[Leer en español](README.es.md)*
 
 Seven daily puzzles in your [Omarchy](https://omarchy.org) bar, in the spirit of
-the LinkedIn games: **Queens**, **Tango**, **Mini Sudoku**, **Zip**, **Patches**, **Minesweeper** and **Tetris**. One click
+the LinkedIn games: **Queens**, **Tango**, **Mini Sudoku**, **Zip**, **Patches**, **Minesweeper**, **Tetris** and **2048**. One click
 opens a menu with the games and today's status; pick one and play it right
 there.
 
@@ -58,16 +58,18 @@ One path visiting **every** cell exactly once, touching the numbers in
 ascending order. Drag to draw: the path extends to the neighbouring cell your
 pointer touches, and going back over the previous one shortens it.
 
-Starting from the number 1 resets the path.
+Starting from the number 1 resets the path. Some days the board has walls:
+bars on the edge between two cells that the path can't cross. Those days come
+with fewer numbers.
 
 ![Zip](docs/zip.png)
 
 ### Patches ▦
 
 Cover the 6×6 grid with rectangles that don't overlap. Each rectangle holds
-exactly one clue: its area is the clue's number, and its shape is the shape of
-the clue's tile — square (straight corners and an outline), wider than tall,
-or taller than wide. A plain rounded tile means any shape goes.
+exactly one clue: its area is the clue's number, and its shape is the one the
+tile draws — square, wide rectangle or tall rectangle. A cross-shaped tile
+(wide and tall overlapped) means any shape goes.
 
 Drag from corner to corner to draw a rectangle; it goes to the one clue inside
 it. Drawing again for the same clue moves it, and anything it covers is
@@ -92,6 +94,13 @@ space hard drops. Topping out restarts the same sequence; the clock keeps
 running. A run isn't saved if you close the panel.
 
 ![Tetris](docs/tetris.png)
+
+### 2048 ▣
+
+Arrows slide every tile; two equal tiles that collide merge into one. The
+day's goal is the **512** tile. New tiles come from the day's seed: same move,
+same tile for everyone. Running out of moves restarts the same board; a run
+isn't saved if you close the panel.
 
 ## Install
 
@@ -133,7 +142,7 @@ folder to remove them too. The plugin writes nothing anywhere else.
 ## The bar widget
 
 Shows a crown with your global streak, dimmed while any game is still unsolved
-today and lit once all seven are done. The tooltip says how many are left.
+today and lit once all eight are done. The tooltip says how many are left.
 
 ![The bar widget](docs/bar.png)
 
@@ -157,10 +166,14 @@ Everything lives in `~/.local/state/omarchy-puzzles/state.json`:
 }
 ```
 
-The streak goes up the first time you solve **any** of the seven on a given day,
+The streak goes up the first time you solve **any** of the eight on a given day,
 and resets after a day without playing. Each game keeps its own best time per
 board size, and its half-finished game, which is saved when you go back to the
 menu or close the panel and discarded when the day rolls over.
+
+**Nueva** (new) starts a free game on a random board: it plays the same, but isn't
+saved and doesn't count toward the streak. Only the daily puzzle counts; going
+back to the menu and picking the game takes you back to it.
 
 Deleting that file starts you from scratch. So does a corrupted one — the plugin
 falls back to defaults instead of breaking.
@@ -239,6 +252,8 @@ early cutoff:
   and subset rules) clears it.
 - **Tetris** shuffles 86 bags of the seven pieces; the board just plays that
   queue.
+- **2048** draws 4096 rolls (which free cell, 2 or 4); each tile that appears
+  takes the next one.
 
 Worst case measured on a 6th-gen laptop: 196 ms (Queens 9×9), 3 ms (Tango),
 3 ms (Sudoku), 149 ms (Zip), 3 ms (Patches), 1 ms (Minesweeper), 1 ms (Tetris).

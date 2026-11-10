@@ -136,3 +136,13 @@ test('maxCellValue declara el tope de una celda', () => {
   const board = S.generate(R.mulberry32(1), 6);
   assert.strictEqual(S.maxCellValue(board), 6);
 });
+
+test('completedGroups devuelve fila, columna y caja recien completas y correctas', () => {
+  const b = S.generate(require('../lib/rng.js').mulberry32(3), N);
+  const cells = new Array(N * N).fill(0);
+  for (let c = 0; c < N; c++) cells[c] = b.solution[c];
+  assert.deepStrictEqual(S.completedGroups(b, cells), [[0, 1, 2, 3, 4, 5]], 'solo la fila 0');
+  cells[0] = b.solution[0] % N + 1;
+  assert.deepStrictEqual(S.completedGroups(b, cells), [], 'un digito distinto de la solucion no cuenta');
+  assert.strictEqual(S.completedGroups(b, b.solution.slice()).length, 18, 'resuelto: 6 filas, 6 columnas, 6 cajas');
+});

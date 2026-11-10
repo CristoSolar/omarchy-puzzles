@@ -86,7 +86,7 @@ Item {
     }
 
     if (next[index] !== 0) return
-    if (!Logic.areAdjacent(punta, index, root.drawnSize)) return
+    if (!Logic.canStep(root.board, punta, index)) return
 
     next[index] = actual.length + 1
     root.cells = next
@@ -164,6 +164,30 @@ Item {
         Behavior on scale {
           NumberAnimation { duration: 90 }
         }
+      }
+    }
+
+    // Murallas: barra gruesa sobre el borde compartido por las dos celdas.
+    Repeater {
+      model: root.board && root.board.walls ? root.board.walls : []
+
+      Rectangle {
+        id: muralla
+        required property var modelData
+        readonly property bool vertical: muralla.modelData[1] === muralla.modelData[0] + 1
+        readonly property int grosor: 6
+        readonly property int a: muralla.modelData[0]
+
+        x: muralla.vertical
+          ? (muralla.a % root.drawnSize + 1) * root.cellPixels - muralla.grosor / 2
+          : (muralla.a % root.drawnSize) * root.cellPixels - 1
+        y: muralla.vertical
+          ? Math.floor(muralla.a / root.drawnSize) * root.cellPixels - 1
+          : (Math.floor(muralla.a / root.drawnSize) + 1) * root.cellPixels - muralla.grosor / 2
+        width: muralla.vertical ? muralla.grosor : root.cellPixels + 2
+        height: muralla.vertical ? root.cellPixels + 2 : muralla.grosor
+        radius: muralla.grosor / 2
+        color: Color.foreground
       }
     }
 

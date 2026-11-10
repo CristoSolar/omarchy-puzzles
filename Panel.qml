@@ -32,6 +32,9 @@ Panel {
   property int elapsedMs: 0
   property bool won: false
   property string errorText: ""
+  // Juego libre: tablero al azar que no se guarda ni mueve la racha. Solo el
+  // puzzle del dia cuenta.
+  property bool freePlay: false
 
   readonly property string statePath: Quickshell.env("HOME") + "/.local/state/omarchy-puzzles/state.json"
   property var store: State.parseState("")
@@ -50,6 +53,15 @@ Panel {
     root.currentGame = id
     root.logic = GameRegistry.logic(id)
     root.dayKey = Rng.dateKey(new Date())
+    root.freePlay = false
+    root.newGame()
+  }
+
+  // Nueva partida libre del juego abierto. La del dia a medias queda guardada.
+  function freeGame() {
+    if (root.currentGame === "") return
+    saveIfNeeded()
+    root.freePlay = true
     root.newGame()
   }
 
@@ -63,8 +75,9 @@ Panel {
 
   function newGame() {
     try {
-      root.board = root.logic.generate(Rng.mulberry32(Rng.seedForDate(new Date())),
-                                       root.sizeFor(root.currentGame))
+      var semilla = root.freePlay ? Math.floor(Math.random() * 4294967296)
+                                  : Rng.seedForDate(new Date())
+      root.board = root.logic.generate(Rng.mulberry32(semilla), root.sizeFor(root.currentGame))
       root.errorText = ""
     } catch (e) {
       root.board = null
@@ -73,6 +86,15 @@ Panel {
     }
 
     var vacias = root.logic.emptyCells(root.board)
+
+    if (root.freePlay) {
+      root.cells = vacias
+      root.elapsedMs = 0
+      root.won = false
+      clock.start()
+      adoptInBoard()
+      return
+    }
 
     if (State.solvedOn(root.store, root.currentGame, root.dayKey)) {
       // Ya resuelto hoy: tras reiniciar el shell, o en otro monitor, se muestra
@@ -120,7 +142,7 @@ Panel {
   // Volver al menu guarda igual que cerrar el panel: la partida a medias no se
   // pierde por navegar.
   function saveIfNeeded() {
-    if (!root.board || root.won || root.currentGame === "") return
+    if (!root.board || root.won || root.freePlay || root.currentGame === "") return
     if (State.solvedOn(root.store, root.currentGame, root.dayKey)) return
     var juego = root.currentGame, dia = root.dayKey
     var celdas = root.cells, transcurrido = root.elapsedMs
@@ -133,6 +155,7 @@ Panel {
     root.won = true
     clock.stop()
     fiesta.lanzar()
+    if (root.freePlay) return
     var juego = root.currentGame, dia = root.dayKey
     var transcurrido = root.elapsedMs, tam = root.sizeFor(root.currentGame)
     root.mutate(function (st) {
@@ -187,7 +210,7 @@ Panel {
     onLoaded: {
       root.store = State.parseState(stateFile.text())
       // Resuelto en otra pantalla: este panel deja de correr su propio reloj.
-      if (root.board && !root.won && root.currentGame !== ""
+      if (root.board && !root.won && !root.freePlay && root.currentGame !== ""
           && State.solvedOn(root.store, root.currentGame, root.dayKey)) {
         clock.stop()
         root.elapsedMs = State.gameState(root.store, root.currentGame).lastElapsedMs
@@ -308,7 +331,8 @@ Panel {
 
         Item {
           visible: root.currentGame !== ""
-          width: Math.max(vista.item ? vista.item.contentWidth : 320, fila.implicitWidth)
+          width: Math.max(vista.item ? vista.item.contentWidth : 320,
+                          fila.implicitWidth + botones.implicitWidth + 12)
           height: fila.implicitHeight
 
           Row {
@@ -326,7 +350,8 @@ Panel {
               spacing: 1
 
               Text {
-                text: root.currentGame === "" ? "" : Registry.byId(root.currentGame).name
+                text: root.currentGame === "" ? ""
+                  : Registry.byId(root.currentGame).name + (root.freePlay ? " · libre" : "")
                 font.pixelSize: 15
                 font.bold: true
                 color: root.barForeground
@@ -334,21 +359,42 @@ Panel {
 
               Text {
                 text: root.won
-                  ? "Resuelto en " + root.formatTime(root.elapsedMs) + " · racha " + root.store.streak
+                  ? "Resuelto en " + root.formatTime(root.elapsedMs)
+                    + (root.freePlay ? " · no suma a la racha" : " · racha " + root.store.streak)
                   : root.formatTime(root.elapsedMs)
+                // Ancho fijo al del texto mas largo: si creciera al resolver, el
+                // panel se ensancharia y el tablero saltaria hacia el costado.
+                width: Math.max(implicitWidth, masLargo.implicitWidth)
                 font.pixelSize: 12
                 color: root.won ? Color.accent : root.barForeground
                 opacity: root.won ? 1.0 : 0.75
+
+                Text {
+                  id: masLargo
+                  visible: false
+                  text: "Resuelto en 00:00 · no suma a la racha"
+                  font.pixelSize: 12
+                }
               }
             }
           }
 
-          Button {
+          Row {
+            id: botones
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            text: "Limpiar"
-            enabled: root.board !== null
-            onClicked: root.clearBoard()
+            spacing: 6
+
+            Button {
+              text: "Nueva"
+              onClicked: root.freeGame()
+            }
+
+            Button {
+              text: "Limpiar"
+              enabled: root.board !== null
+              onClicked: root.clearBoard()
+            }
           }
         }
 
@@ -362,6 +408,7 @@ Panel {
 
         Loader {
           id: vista
+          anchors.horizontalCenter: parent.horizontalCenter
           source: root.currentGame === ""
             ? Qt.resolvedUrl("Menu.qml")
             : Qt.resolvedUrl(Registry.byId(root.currentGame).board)

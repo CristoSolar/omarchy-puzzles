@@ -7,6 +7,7 @@ import "games/zip/logic.js" as ZipLogic
 import "games/patches/logic.js" as PatchesLogic
 import "games/minas/logic.js" as MinasLogic
 import "games/tetris/logic.js" as TetrisLogic
+import "games/n2048/logic.js" as N2048Logic
 
 // Los modulos de logica se importan estaticamente porque QML no admite imports
 // dinamicos por id. Cada juego nuevo agrega su import y su rama.
@@ -19,6 +20,7 @@ QtObject {
     if (id === "patches") return PatchesLogic
     if (id === "minas") return MinasLogic
     if (id === "tetris") return TetrisLogic
+    if (id === "n2048") return N2048Logic
     return null
   }
 }

@@ -162,3 +162,27 @@ test('generate rechaza tamanos que no sean 6', () => {
     assert.throws(() => Z.generate(R.mulberry32(1), malo), /tamano/i);
   }
 });
+
+test('cruzar una muralla marca el tramo', () => {
+  const b = { n: N, checkpoints: grilla(), solution: [], walls: [[1, 2]] };
+  const malos = Z.conflicts(b, conCamino([0, 1, 2]));
+  assert.ok(malos.includes(1) && malos.includes(2));
+  assert.strictEqual(Z.canStep(b, 2, 1), false, 'la muralla vale en los dos sentidos');
+  assert.strictEqual(Z.canStep(b, 0, 1), true);
+});
+
+test('algunos dias traen murallas que la solucion no cruza, y siguen con solucion unica', () => {
+  const { mulberry32 } = require('../lib/rng.js');
+  let conMurallas = 0;
+  for (let seed = 1; seed <= 12; seed++) {
+    const b = Z.generate(mulberry32(seed), N);
+    if (b.walls.length === 0) continue;
+    conMurallas++;
+    for (let i = 1; i < b.solution.length; i++) {
+      assert.ok(Z.canStep(b, b.solution[i - 1], b.solution[i]), 'la solucion no cruza murallas');
+    }
+    assert.ok(Z.isSolved(b, Z.solvedCells(b)));
+    assert.strictEqual(Z.countPaths(b, 2), 1);
+  }
+  assert.ok(conMurallas > 0 && conMurallas < 12, 'murallas solo algunos dias: ' + conMurallas);
+});

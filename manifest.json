@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.cristosolar.puzzles",
   "name": "Puzzles",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": "CristoSolar",
   "license": "MIT",
   "description": "Puzzles diarios en la barra, al estilo de los de LinkedIn. Un clic abre el menu con los juegos y su estado del dia; se elige uno y se juega ahi mismo. Cada tablero se genera en tu equipo a partir de la fecha, con solucion unica garantizada, y una racha global cuenta los dias en que resolviste al menos uno. Sin red, sin dependencias.",

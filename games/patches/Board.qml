@@ -134,40 +134,74 @@ Item {
       }
     }
 
-    // Pistas: la ficha misma tiene la forma pedida -- ancha, alta o cuadrada,
-    // y la ficha redondeada comun si la forma es libre -- con el area adentro. Un glifo aparte no
-    // sirve: los caracteres de forma no estan en todas las fuentes, y dibujado
-    // chico junto al numero no se distinguia.
+    // Pistas: la ficha dibuja la forma que pide -- cuadrado, rectangulo ancho o
+    // rectangulo alto -- y una cruz (ancho y alto superpuestos) cuando vale
+    // cualquiera. El area va encima. Sin glifos: no estan en todas las fuentes.
     Repeater {
       model: root.board ? root.board.clues : []
 
-      Rectangle {
+      Item {
         id: pista
         required property var modelData
         required property int index
         readonly property string forma: pista.modelData.shape
-        readonly property int largo: root.cellPixels - 8
-        readonly property int corto: Math.round((root.cellPixels - 8) * 0.6)
+        readonly property color tono: root.tint(pista.index + 1, 0.95)
+        readonly property int largo: root.cellPixels - 6
+        readonly property int corto: Math.round((root.cellPixels - 6) * 0.5)
 
-        // Libre: la ficha redondeada de siempre. Cuadrado: un poco mas chica,
-        // de esquinas rectas y con borde, para que no se confunda con libre.
-        readonly property int lado: pista.forma === "square" ? root.cellPixels - 14 : root.cellPixels - 10
-
-        width: pista.forma === "wide" ? pista.largo
-          : (pista.forma === "tall" ? pista.corto : pista.lado)
-        height: pista.forma === "tall" ? pista.largo
-          : (pista.forma === "wide" ? pista.corto : pista.lado)
+        width: pista.largo
+        height: pista.largo
         x: (pista.modelData.cell % root.drawnSize + 0.5) * root.cellPixels - width / 2
         y: (Math.floor(pista.modelData.cell / root.drawnSize) + 0.5) * root.cellPixels - height / 2
-        radius: pista.forma === "any" ? 8 : (pista.forma === "square" ? 1 : 5)
-        color: root.tint(pista.index + 1, 0.95)
-        border.width: pista.forma === "square" ? 2 : 0
-        border.color: Color.background
+
+        // Barra ancha: el rectangulo ancho, y el trazo horizontal de la cruz.
+        Rectangle {
+          visible: pista.forma === "wide" || pista.forma === "any"
+          anchors.centerIn: parent
+          width: pista.largo
+          height: pista.corto
+          radius: 3
+          color: pista.tono
+          border.width: 2
+          border.color: Color.background
+        }
+
+        // Barra alta: el rectangulo alto, y el trazo vertical de la cruz.
+        Rectangle {
+          visible: pista.forma === "tall" || pista.forma === "any"
+          anchors.centerIn: parent
+          width: pista.corto
+          height: pista.largo
+          radius: 3
+          color: pista.tono
+          border.width: 2
+          border.color: Color.background
+        }
+
+        // En la cruz tapa el borde del centro, asi se lee como una sola figura.
+        Rectangle {
+          visible: pista.forma === "any"
+          anchors.centerIn: parent
+          width: pista.corto - 4
+          height: pista.corto - 4
+          color: pista.tono
+        }
+
+        Rectangle {
+          visible: pista.forma === "square"
+          anchors.centerIn: parent
+          width: root.cellPixels - 12
+          height: root.cellPixels - 12
+          radius: 3
+          color: pista.tono
+          border.width: 2
+          border.color: Color.background
+        }
 
         Text {
           anchors.centerIn: parent
           text: pista.modelData.area
-          font.pixelSize: 16
+          font.pixelSize: 15
           font.bold: true
           color: Color.background
         }

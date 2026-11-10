@@ -16,6 +16,8 @@ Item {
 
   signal cellsEdited(var updated)
   signal solvedNow()
+  // Celdas de grupos recien completados, en el orden en que se ilumina la ola.
+  signal groupsCompleted(var orden)
 
   readonly property int cellPixels: 46
   readonly property int drawnSize: board ? board.n : 0
@@ -59,7 +61,16 @@ Item {
 
     var next = root.cells.slice()
     next[root.selected] = next[root.selected] === d ? 0 : d
+    var antes = Logic.completedGroups(root.board, root.cells).map(function (g) { return g.join() })
+    var nuevos = Logic.completedGroups(root.board, next).filter(function (g) {
+      return antes.indexOf(g.join()) === -1
+    })
     root.cells = next
+    if (nuevos.length > 0) {
+      var orden = []
+      for (var g = 0; g < nuevos.length; g++) orden = orden.concat(nuevos[g])
+      root.groupsCompleted(orden)
+    }
     root.badCells = Logic.conflicts(root.board, next)
     root.cellsEdited(root.cells)
     if (Logic.isSolved(root.board, root.cells)) root.solvedNow()
@@ -113,6 +124,34 @@ Item {
             color: height > 1
               ? Color.accent
               : Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.15)
+          }
+
+          // Destello al completar bien una fila, columna o caja: una ola en el
+          // orden del grupo, como en LinkedIn.
+          Rectangle {
+            id: destello
+            anchors.fill: parent
+            color: Color.accent
+            opacity: 0
+
+            SequentialAnimation {
+              id: ola
+              property int espera: 0
+              PauseAnimation { duration: ola.espera }
+              NumberAnimation { target: destello; property: "opacity"; to: 0.55; duration: 120 }
+              NumberAnimation { target: destello; property: "opacity"; to: 0; duration: 380; easing.type: Easing.OutCubic }
+            }
+
+            Connections {
+              target: root
+              function onGroupsCompleted(orden) {
+                var pos = orden.indexOf(celda.index)
+                if (pos === -1) return
+                ola.stop()
+                ola.espera = (pos % root.drawnSize) * 45
+                ola.start()
+              }
+            }
           }
 
           Text {

@@ -1,5 +1,6 @@
 // Zip: un camino que pasa por todas las celdas exactamente una vez, tocando los
-// numeros en orden ascendente.
+// numeros en orden ascendente. Algunos dias el tablero trae murallas: bordes
+// entre dos celdas vecinas que el camino no puede cruzar.
 //
 // `cells[i]` es la posicion de la celda i dentro del camino: 0 si no esta, k si
 // es el paso k. Por eso los valores llegan hasta n*n, y por eso el contrato
@@ -25,6 +26,21 @@ function areAdjacent(a, b, n) {
   return (dr === 1 && dc === 0) || (dr === 0 && dc === 1);
 }
 
+// Murallas: pares [a, b] de celdas vecinas con a < b. Un tablero sin `walls`
+// (partidas guardadas de antes) no tiene ninguna.
+function hasWall(board, a, b) {
+  var w = board.walls || [];
+  var lo = Math.min(a, b), hi = Math.max(a, b);
+  for (var i = 0; i < w.length; i++) {
+    if (w[i][0] === lo && w[i][1] === hi) return true;
+  }
+  return false;
+}
+
+function canStep(board, a, b) {
+  return areAdjacent(a, b, board.n) && !hasWall(board, a, b);
+}
+
 function maxCellValue(board) {
   return board.n * board.n;
 }
@@ -43,7 +59,7 @@ function pathOf(cells) {
 }
 
 // Lo unico que se reporta es lo que ya esta mal: un tramo entre celdas no
-// vecinas, y un numero alcanzado fuera de orden. Un camino corto no es error.
+// vecinas o que cruza una muralla, y un numero alcanzado fuera de orden. Un camino corto no es error.
 function conflicts(board, cells) {
   var n = board.n;
   var camino = pathOf(cells);
@@ -51,7 +67,7 @@ function conflicts(board, cells) {
   var i;
 
   for (i = 1; i < camino.length; i++) {
-    if (!areAdjacent(camino[i - 1], camino[i], n)) {
+    if (!canStep(board, camino[i - 1], camino[i])) {
       malo[camino[i - 1]] = true;
       malo[camino[i]] = true;
     }
@@ -89,6 +105,11 @@ function emptyCells(board) {
 // presupuesto de nodos. Agotado, devuelve -1: el podado lo interpreta como "no
 // se pudo demostrar unicidad" y deja el numero que estaba probando quitar.
 var NODE_BUDGET = 60000;
+
+// Dias con murallas y cuantas: con murallas el camino queda mas atado, asi que
+// el podado logra quitar mas numeros y el tablero sale con menos pistas.
+var MURALLA_PROB = 0.4;
+var MURALLAS = 7;
 
 function shuffledLocal(values, rand) {
   var out = values.slice();
@@ -190,6 +211,16 @@ function countPaths(board, limit) {
   var visitado = [];
   for (i = 0; i < total; i++) visitado.push(false);
 
+  // Vecinas alcanzables sin cruzar muralla, calculadas una sola vez.
+  var pasos = [];
+  for (i = 0; i < total; i++) {
+    var todas = neighborsOf(i, n), libres = [];
+    for (var q = 0; q < todas.length; q++) {
+      if (!hasWall(board, i, todas[q])) libres.push(todas[q]);
+    }
+    pasos.push(libres);
+  }
+
   var found = 0;
   var nodos = 0;
   var agotado = false;
@@ -200,7 +231,7 @@ function countPaths(board, limit) {
     if (faltan === 0) return true;
     var pila = [];
     var vistos = {};
-    var vs = neighborsOf(desde, n);
+    var vs = pasos[desde];
     for (var k = 0; k < vs.length; k++) {
       if (!visitado[vs[k]]) {
         pila.push(vs[k]);
@@ -214,7 +245,7 @@ function countPaths(board, limit) {
     while (pila.length > 0) {
       var cur = pila.pop();
       alcanzados++;
-      var ws = neighborsOf(cur, n);
+      var ws = pasos[cur];
       for (var m = 0; m < ws.length; m++) {
         if (!visitado[ws[m]] && !vistos[ws[m]]) {
           vistos[ws[m]] = true;
@@ -248,7 +279,7 @@ function countPaths(board, limit) {
     }
 
     if (restoConectado(idx, total - largo)) {
-      var vs = neighborsOf(idx, n);
+      var vs = pasos[idx];
       for (var k = 0; k < vs.length; k++) {
         if (!visitado[vs[k]]) avanzar(vs[k], largo + 1, esperado);
         if (found >= limit || agotado) break;
@@ -262,6 +293,21 @@ function countPaths(board, limit) {
   return agotado ? -1 : found;
 }
 
+// Murallas al azar sobre bordes que el camino solucion no usa, asi la solucion
+// sigue valiendo.
+function randomWalls(rand, n, camino, cuantas) {
+  var usado = {};
+  for (var i = 1; i < camino.length; i++) {
+    usado[Math.min(camino[i - 1], camino[i]) + '-' + Math.max(camino[i - 1], camino[i])] = true;
+  }
+  var libres = [];
+  for (var a = 0; a < n * n; a++) {
+    if (colOf(a, n) < n - 1 && !usado[a + '-' + (a + 1)]) libres.push([a, a + 1]);
+    if (rowOf(a, n) < n - 1 && !usado[a + '-' + (a + n)]) libres.push([a, a + n]);
+  }
+  return shuffledLocal(libres, rand).slice(0, cuantas);
+}
+
 // Numera todo el camino y despues quita numeros mientras la solucion siga
 // siendo unica. El primero y el ultimo nunca se quitan: son los que anclan el
 // arranque y el final.
@@ -272,6 +318,7 @@ function generate(rand, size) {
   var n = size;
   var camino = randomHamiltonian(rand, n);
   var total = n * n;
+  var walls = rand() < MURALLA_PROB ? randomWalls(rand, n, camino, MURALLAS) : [];
 
   var puestos = [];
   var i, k;
@@ -287,7 +334,7 @@ function generate(rand, size) {
     return checkpoints;
   }
 
-  var board = { n: n, checkpoints: numerar(puestos), solution: camino };
+  var board = { n: n, checkpoints: numerar(puestos), solution: camino, walls: walls };
 
   var orden = shuffledLocal(rangeOfZ(total), rand);
   for (i = 0; i < orden.length; i++) {
@@ -299,7 +346,7 @@ function generate(rand, size) {
     }
     if (quedan.length === puestos.length) continue;
 
-    var probar = { n: n, checkpoints: numerar(quedan), solution: camino };
+    var probar = { n: n, checkpoints: numerar(quedan), solution: camino, walls: walls };
     if (countPaths(probar, 2) === 1) {
       puestos = quedan;
       board = probar;
@@ -323,6 +370,8 @@ if (typeof module !== 'undefined') {
     meta: meta,
     rowOf: rowOf, colOf: colOf,
     areAdjacent: areAdjacent,
+    hasWall: hasWall,
+    canStep: canStep,
     maxCellValue: maxCellValue,
     pathOf: pathOf,
     conflicts: conflicts,
